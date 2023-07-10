@@ -7,12 +7,12 @@ use winit::{
 mod raycaster;
 mod window;
 
-pub const WIDTH: u32 = 640;
-pub const HEIGHT: u32 = 480;
+pub const WIDTH: u32 = 24;
+pub const HEIGHT: u32 = 24;
 
 fn main() -> Result<(), Error> {
     let event_loop = EventLoop::new();
-    let mut gw = window::GameWindow::new("2D Raycaster", &event_loop)?;
+    let mut gw = window::GameWindow::new("2D Raycaster", &event_loop, 1)?;
     let mut raycaster = raycaster::RayCaster::new(60.);
     // gw.pixels.resize_buffer(960, 720).unwrap();
 
@@ -27,11 +27,7 @@ fn main() -> Result<(), Error> {
                     pixel.copy_from_slice(&[0, 0, 0, 255]); // Set every pixel to black
                 }
 
-                // raycaster.draw(frame).unwrap();
-                frame[0] = 255;
-                frame[1] = 0;
-                frame[2] = 0;
-                frame[3] = 255;
+                raycaster.draw(frame).unwrap();
                 gw.pixels.render().unwrap();
             }
 
@@ -131,7 +127,7 @@ fn line(frame: &mut [u8], x1: i32, y1: i32, x2: i32, y2: i32, color: [u8; 4]) {
 }
 
 
-fn set_pixel(frame: &mut [u8], x: i32, y: i32, color: [u8; 4]) {
+pub fn set_pixel(frame: &mut [u8], x: i32, y: i32, color: [u8; 4]) {
     let index = (y * WIDTH as i32 + x) as usize * 4;
     frame[index..index+4].copy_from_slice(&color);
 }

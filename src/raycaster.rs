@@ -1,4 +1,4 @@
-use crate::{verline, HEIGHT, WIDTH, line};
+use crate::{verline, HEIGHT, WIDTH, line, set_pixel};
 
 pub const MAPHEIGHT: usize = 24;
 pub const MAPWIDTH: usize = 24;
@@ -14,7 +14,7 @@ struct Player {
     pub dir: Vector<f64>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 struct Vector<T> {
     x: T,
     y: T,
@@ -36,6 +36,40 @@ where
         Self {
             x: self.x + rhs.x,
             y: self.y + rhs.y,
+        }
+    }
+}
+
+impl<T> std::ops::AddAssign for Vector<T>
+where
+    T: std::ops::AddAssign,
+{
+    fn add_assign(&mut self, rhs: Self) {
+        self.x += rhs.x;
+        self.y += rhs.y;
+    }
+}
+
+impl<T> std::ops::SubAssign for Vector<T>
+where
+    T: std::ops::SubAssign,
+{
+    fn sub_assign(&mut self, rhs: Self) {
+        self.x -= rhs.x;
+        self.y -= rhs.y;
+    }
+}
+
+impl<T> std::ops::Mul<T> for Vector<T>
+where
+    T: std::ops::Mul<Output = T> + Copy,
+{
+    type Output = Self;
+
+    fn mul(self, rhs: T) -> Self::Output {
+        Self {
+            x: self.x * rhs,
+            y: self.y * rhs,
         }
     }
 }
@@ -87,17 +121,55 @@ impl RayCaster {
     }
 
     pub fn draw(&self, frame: &mut [u8]) -> Result<(), String> {
-        let draw_start = Vector::from(self.player.pos);
-        let draw_end = Vector::from(self.player.pos) + self.player.dir;
+        for y in 0..self.map.len() {
+            for x in 0..self.map[y].len() {
+                let i = (y * WIDTH as usize + x) as usize;
+                let color = match self.map[y][x] {
+                    1 => [255, 0, 0, 255],
+                    2 => [0, 255, 0, 255],
+                    3 => [0, 0, 255, 255],
+                    4 => [255, 255, 255, 255],
+                    5 => [255, 255, 0, 255],
+                    _ => [0, 0, 0, 255],
+                };
 
-        line(frame, draw_start.x as i32, draw_start.y as i32, draw_end.x as i32, draw_end.y as i32, [255, 255, 255, 255]);
+                if Vector::new(x as f64, y as f64) == self.player.pos {
+                    set_pixel(frame, x as i32, y as i32, [255, 255, 255, 255]);
+                    continue;
+                }
 
+                set_pixel(frame, x as i32, y as i32, color)
+            }
+        }
         Ok(())
     }
 
     pub fn change_direction(&mut self, dir: Direction) {
-        unimplemented!("change_direction")
+        const MOVESPEED: f64 = 1.;
+        match dir {
+            Direction::Down => {
+                const ANGLE: f64 = std::f64::consts::PI * 0.02; // Rotate by approximately 1 degree
+                let (sin, cos) = ANGLE.sin_cos();
+                let new_dir_x = self.player.dir.x * cos - self.player.dir.y * sin;
+                let new_dir_y = self.player.dir.x * sin + self.player.dir.y * cos;
+                self.player.dir = Vector::new(new_dir_x, new_dir_y);
+            },
+            Direction::Up => {
+                const ANGLE: f64 = -std::f64::consts::PI * 0.02; // Rotate by approximately -1 degree
+                let (sin, cos) = ANGLE.sin_cos();
+                let new_dir_x = self.player.dir.x * cos - self.player.dir.y * sin;
+                let new_dir_y = self.player.dir.x * sin + self.player.dir.y * cos;
+                self.player.dir = Vector::new(new_dir_x, new_dir_y);
+            },
+            Direction::Left => {
+                self.player.pos += self.player.dir * MOVESPEED;
+            },
+            Direction::Right => {
+                self.player.pos -= self.player.dir * MOVESPEED;
+            },
+        }
     }
+    
 }
 
 trait DivAssign {
