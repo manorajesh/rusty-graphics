@@ -1,14 +1,20 @@
 use crate::{verline, HEIGHT, WIDTH, line, set_pixel, filled_rectangle};
 
-pub const MAPHEIGHT: usize = 24;
-pub const MAPWIDTH: usize = 24;
+pub const MAPHEIGHT: usize = 240;
+pub const MAPWIDTH: usize = 320;
 
-pub const PIXELSIZE: usize = 5;
+pub const PIXELSIZE: usize = 1;
 
 pub struct RayCaster {
     player: Player,
-    map: [[usize; MAPWIDTH]; MAPHEIGHT],
-    fov: f64,
+    map: [[u8; MAPWIDTH]; MAPHEIGHT],
+    fov: usize,
+}
+
+struct Ray {
+    dir: Vector<f64>,
+    distance: f64,
+    hit: bool,
 }
 
 struct Player {
@@ -16,7 +22,7 @@ struct Player {
     pub dir: Vector<f64>,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, PartialOrd)]
 struct Vector<T> {
     x: T,
     y: T,
@@ -25,6 +31,19 @@ struct Vector<T> {
 impl<T> Vector<T> {
     pub fn new(x: T, y: T) -> Self {
         Self { x, y }
+    }
+
+    pub fn rotate(&self, angle: f64) -> Vector<T>
+    where
+        T: Into<f64> + From<f64> + Copy,
+    {
+        let x = self.x.into();
+        let y = self.y.into();
+
+        let new_x = (x * angle.cos() - y * angle.sin()).into();
+        let new_y = (x * angle.sin() + y * angle.cos()).into();
+
+        Vector::new(new_x, new_y)
     }
 }
 
@@ -81,65 +100,109 @@ pub enum Direction {
     Down,
     Left,
     Right,
+    Mouse(f64, f64),
 }
 
 impl RayCaster {
-    pub fn new(fov: f64) -> Self {
+    pub fn new(fov: usize) -> Self {
         Self {
             player: Player {
                 pos: Vector { x: 22.0, y: 12.0 },
                 dir: Vector { x: -1.0, y: 0.0 },
             },
 
-            map: [
-                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-                [1,0,0,0,0,0,2,2,2,2,2,0,0,0,0,3,0,3,0,3,0,0,0,1],
-                [1,0,0,0,0,0,2,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,1],
-                [1,0,0,0,0,0,2,0,0,0,2,0,0,0,0,3,0,0,0,3,0,0,0,1],
-                [1,0,0,0,0,0,2,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,1],
-                [1,0,0,0,0,0,2,2,0,2,2,0,0,0,0,3,0,3,0,3,0,0,0,1],
-                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-                [1,4,4,4,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-                [1,4,0,4,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-                [1,4,0,0,0,0,5,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-                [1,4,0,4,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-                [1,4,0,4,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-                [1,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-                [1,4,4,4,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
-              ],
+            map: generate_map(),
+
+            // map: [
+            //     [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            //     [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            //     [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            //     [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            //     [1,0,0,0,0,0,2,2,2,2,2,0,0,0,0,3,0,3,0,3,0,0,0,1],
+            //     [1,0,0,0,0,0,2,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            //     [1,0,0,0,0,0,2,0,0,0,2,0,0,0,0,3,0,0,0,3,0,0,0,1],
+            //     [1,0,0,0,0,0,2,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            //     [1,0,0,0,0,0,2,2,0,2,2,0,0,0,0,3,0,3,0,3,0,0,0,1],
+            //     [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            //     [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            //     [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            //     [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            //     [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            //     [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            //     [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            //     [1,4,4,4,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            //     [1,4,0,4,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            //     [1,4,0,0,0,0,5,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            //     [1,4,0,4,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            //     [1,4,0,4,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            //     [1,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            //     [1,4,4,4,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            //     [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            //   ],
 
               fov,
         }
     }
 
     pub fn draw(&self, frame: &mut [u8]) -> Result<(), String> {
+        // raycasting
+
+        for i in 0..1000 {
+            let mut ray = Ray {
+                dir: self.player.dir.rotate(i as f64),
+                distance: 0.,
+                hit: false,
+            };
+
+            let mut pos = self.player.pos;
+            while !ray.hit {
+                pos += ray.dir;
+                ray.distance += 1.;
+                if self.map[pos.y as usize][pos.x as usize] != 0 {
+                    ray.hit = true;
+                }
+            }
+
+            let color = [255, 255, 255, 100];
+
+            // if ray.distance < 5. {
+            //     color = [255, 0, 0, 255];
+            // } else if ray.distance < 10. {
+            //     color = [255, 255, 0, 255];
+            // } else if ray.distance < 15. {
+            //     color = [0, 255, 0, 255];
+            // } else if ray.distance < 20. {
+            //     color = [0, 255, 255, 255];
+            // } else if ray.distance < 25. {
+            //     color = [0, 0, 255, 255];
+            // }
+
+            // let height = (1. / ray.distance) * 100.;
+
+            // filled_rectangle(frame, i, 0, i+1, height as usize, color, PIXELSIZE);
+
+            line(frame, self.player.pos.x as i32, self.player.pos.y as i32, pos.x as i32, pos.y as i32, color, 1);
+        }
+
         for y in 0..self.map.len() {
             for x in 0..self.map[y].len() {
                 let color = match self.map[y][x] {
-                    1 => [255, 0, 0, 255],
-                    2 => [0, 255, 0, 255],
-                    3 => [0, 0, 255, 255],
-                    4 => [255, 255, 255, 255],
-                    5 => [255, 255, 0, 255],
-                    _ => [0, 0, 0, 255],
+                    1 => Some([255, 0, 0, 255]),
+                    2 => Some([0, 255, 0, 255]),
+                    3 => Some([0, 0, 255, 255]),
+                    4 => Some([255, 255, 255, 255]),
+                    5 => Some([255, 255, 0, 255]),
+                    _ => None,
                 };
 
-                set_pixel(frame, x, y, color, PIXELSIZE);
+                if let Some(color) = color {
+                    set_pixel(frame, x, y, color, PIXELSIZE);
+                }
                 // filled_rectangle(frame, x, y, x+1, y+2, color, PIXELSIZE)
             }
         }
 
-        set_pixel(frame, self.player.pos.x as usize, self.player.pos.y as usize, [255, 255, 255, 255], PIXELSIZE);
+        set_pixel(frame, self.player.pos.x as usize, self.player.pos.y as usize, [255, 255, 255, 255], 1);
         Ok(())
     }
 
@@ -147,25 +210,23 @@ impl RayCaster {
         const MOVESPEED: f64 = 1.;
         match dir {
             Direction::Down => {
-                const ANGLE: f64 = std::f64::consts::PI * 0.02; // Rotate by approximately 1 degree
-                let (sin, cos) = ANGLE.sin_cos();
-                let new_dir_x = self.player.dir.x * cos - self.player.dir.y * sin;
-                let new_dir_y = self.player.dir.x * sin + self.player.dir.y * cos;
-                self.player.dir = Vector::new(new_dir_x, new_dir_y);
+                self.player.pos += Vector::new(0., 1.) * MOVESPEED;
             },
             Direction::Up => {
-                const ANGLE: f64 = -std::f64::consts::PI * 0.02; // Rotate by approximately -1 degree
-                let (sin, cos) = ANGLE.sin_cos();
-                let new_dir_x = self.player.dir.x * cos - self.player.dir.y * sin;
-                let new_dir_y = self.player.dir.x * sin + self.player.dir.y * cos;
-                self.player.dir = Vector::new(new_dir_x, new_dir_y);
+                self.player.pos += Vector::new(0., -1.) * MOVESPEED;
             },
             Direction::Left => {
-                self.player.pos += self.player.dir * MOVESPEED;
+                self.player.pos += Vector::new(-1., 0.) * MOVESPEED;
             },
             Direction::Right => {
-                self.player.pos -= self.player.dir * MOVESPEED;
+                self.player.pos += Vector::new(1., 0.) * MOVESPEED;
             },
+            Direction::Mouse(dx, dy) => {
+                // self.player.pos += Vector::new(dx as f64, dy as f64) * 0.1;
+                // if self.player.pos > Vector::new(320., 240.) {
+                //     self.player.pos = Vector::new(320.-1., 240.-1.);
+                // }
+            }
         }
     }
     
@@ -182,4 +243,62 @@ impl DivAssign for [u8; 4] {
         self[2] /= rhs;
         self[3] /= rhs;
     }
+}
+
+fn generate_map() -> [[u8; 320]; 240] {
+    let mut map = [[0u8; 320]; 240];
+
+    // Fill the border with 1s
+    for i in 0..320 {
+        map[0][i] = 1;
+        map[239][i] = 1;
+    }
+    for i in 0..240 {
+        map[i][0] = 1;
+        map[i][319] = 1;
+    }
+
+    // Add a large room of 2s at the center
+    for i in 80..160 {
+        for j in 120..200 {
+            map[i][j] = 2;
+        }
+    }
+
+    // Add a corridor of 3s leading from the room to the right wall
+    for i in 120..130 {
+        for j in 200..320 {
+            map[i][j] = 3;
+        }
+    }
+
+    // Add a small room of 4s at the top left
+    for i in 20..50 {
+        for j in 20..50 {
+            map[i][j] = 4;
+        }
+    }
+
+    // Add a corridor of 5s leading from the small room to the large room
+    for i in 45..80 {
+        for j in 20..30 {
+            map[i][j] = 5;
+        }
+    }
+
+    // Add a small room of 4s at the bottom right
+    for i in 190..220 {
+        for j in 270..300 {
+            map[i][j] = 4;
+        }
+    }
+
+    // Add a corridor of 5s leading from the small room to the bottom border
+    for i in 220..240 {
+        for j in 270..280 {
+            map[i][j] = 5;
+        }
+    }
+
+    map
 }
