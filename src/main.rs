@@ -7,12 +7,13 @@ use winit::{
 mod raycaster;
 mod window;
 
-pub const WIDTH: u32 = 24;
-pub const HEIGHT: u32 = 24;
+pub const WIDTH: u32 = 320;
+pub const HEIGHT: u32 = 240;
+pub const SCALEFACTOR: u32 = 1;
 
 fn main() -> Result<(), Error> {
     let event_loop = EventLoop::new();
-    let mut gw = window::GameWindow::new("2D Raycaster", &event_loop, 1)?;
+    let mut gw = window::GameWindow::new("2D Raycaster", &event_loop, SCALEFACTOR)?;
     let mut raycaster = raycaster::RayCaster::new(60.);
     // gw.pixels.resize_buffer(960, 720).unwrap();
 
@@ -98,7 +99,7 @@ fn verline(frame: &mut [u8], x: usize, y1: usize, y2: usize, rgba: &[u8; 4], thi
     }
 }
 
-fn line(frame: &mut [u8], x1: i32, y1: i32, x2: i32, y2: i32, color: [u8; 4]) {
+pub fn line(frame: &mut [u8], x1: i32, y1: i32, x2: i32, y2: i32, color: [u8; 4]) {
     let dx = i32::abs(x2 - x1);
     let sx = if x1 < x2 { 1 } else { -1 };
     let dy = -i32::abs(y2 - y1);
@@ -108,7 +109,7 @@ fn line(frame: &mut [u8], x1: i32, y1: i32, x2: i32, y2: i32, color: [u8; 4]) {
     let mut y = y1;
 
     loop {
-        set_pixel(frame, x, y, color);
+        set_pixel(frame, x as usize, y as usize, color, 0);
 
         if x == x2 && y == y2 { break }
 
@@ -126,8 +127,16 @@ fn line(frame: &mut [u8], x1: i32, y1: i32, x2: i32, y2: i32, color: [u8; 4]) {
     }
 }
 
+fn filled_rectangle(frame: &mut [u8], x1: usize, y1: usize, x2: usize, y2: usize, color: [u8; 4], scale: usize) {
+    for x in x1..=x2 {
+        for y in y1..=y2 {
+            if x >= (WIDTH/SCALEFACTOR) as usize || y >= (HEIGHT/SCALEFACTOR) as usize { continue }
+            set_pixel(frame, x, y, color, scale);
+        }
+    }
+}
 
-pub fn set_pixel(frame: &mut [u8], x: i32, y: i32, color: [u8; 4]) {
-    let index = (y * WIDTH as i32 + x) as usize * 4;
+pub fn set_pixel(frame: &mut [u8], x: usize, y: usize, color: [u8; 4], scale: usize) {
+    let index = (y * WIDTH as usize + x) as usize * 4 * scale;
     frame[index..index+4].copy_from_slice(&color);
 }

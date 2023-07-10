@@ -1,7 +1,9 @@
-use crate::{verline, HEIGHT, WIDTH, line, set_pixel};
+use crate::{verline, HEIGHT, WIDTH, line, set_pixel, filled_rectangle};
 
 pub const MAPHEIGHT: usize = 24;
 pub const MAPWIDTH: usize = 24;
+
+const PIXELSIZE: usize = 5;
 
 pub struct RayCaster {
     player: Player,
@@ -123,7 +125,6 @@ impl RayCaster {
     pub fn draw(&self, frame: &mut [u8]) -> Result<(), String> {
         for y in 0..self.map.len() {
             for x in 0..self.map[y].len() {
-                let i = (y * WIDTH as usize + x) as usize;
                 let color = match self.map[y][x] {
                     1 => [255, 0, 0, 255],
                     2 => [0, 255, 0, 255],
@@ -134,11 +135,11 @@ impl RayCaster {
                 };
 
                 if Vector::new(x as f64, y as f64) == self.player.pos {
-                    set_pixel(frame, x as i32, y as i32, [255, 255, 255, 255]);
+                    set_pixel(frame, x, y, [255, 255, 255, 255], 1);
                     continue;
                 }
 
-                set_pixel(frame, x as i32, y as i32, color)
+                set_pixel(frame, x, y, color, PIXELSIZE);
             }
         }
         Ok(())
