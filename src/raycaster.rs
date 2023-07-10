@@ -3,7 +3,7 @@ use crate::{verline, HEIGHT, WIDTH, line, set_pixel, filled_rectangle};
 pub const MAPHEIGHT: usize = 24;
 pub const MAPWIDTH: usize = 24;
 
-const PIXELSIZE: usize = 5;
+pub const PIXELSIZE: usize = 5;
 
 pub struct RayCaster {
     player: Player,
@@ -134,14 +134,12 @@ impl RayCaster {
                     _ => [0, 0, 0, 255],
                 };
 
-                if Vector::new(x as f64, y as f64) == self.player.pos {
-                    set_pixel(frame, x, y, [255, 255, 255, 255], 1);
-                    continue;
-                }
-
                 set_pixel(frame, x, y, color, PIXELSIZE);
+                // filled_rectangle(frame, x, y, x+1, y+2, color, PIXELSIZE)
             }
         }
+
+        set_pixel(frame, self.player.pos.x as usize, self.player.pos.y as usize, [255, 255, 255, 255], PIXELSIZE);
         Ok(())
     }
 

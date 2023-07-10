@@ -9,7 +9,7 @@ mod window;
 
 pub const WIDTH: u32 = 320;
 pub const HEIGHT: u32 = 240;
-pub const SCALEFACTOR: u32 = 1;
+pub const SCALEFACTOR: f64 = 1.;
 
 fn main() -> Result<(), Error> {
     let event_loop = EventLoop::new();
@@ -128,15 +128,21 @@ pub fn line(frame: &mut [u8], x1: i32, y1: i32, x2: i32, y2: i32, color: [u8; 4]
 }
 
 fn filled_rectangle(frame: &mut [u8], x1: usize, y1: usize, x2: usize, y2: usize, color: [u8; 4], scale: usize) {
-    for x in x1..=x2 {
-        for y in y1..=y2 {
-            if x >= (WIDTH/SCALEFACTOR) as usize || y >= (HEIGHT/SCALEFACTOR) as usize { continue }
+    for x in (x1*scale)..=(x2*scale) {
+        for y in (y1*scale)..=(y2*scale) {
+            if x >= WIDTH as usize || y >= HEIGHT as usize { continue }
             set_pixel(frame, x, y, color, scale);
         }
     }
 }
 
 pub fn set_pixel(frame: &mut [u8], x: usize, y: usize, color: [u8; 4], scale: usize) {
-    let index = (y * WIDTH as usize + x) as usize * 4 * scale;
-    frame[index..index+4].copy_from_slice(&color);
+    for i in 0..scale {
+        for j in 0..scale {
+            let index = (((y * scale + j) * WIDTH as usize + (x * scale + i)) * 4) as usize;
+            if index < frame.len() {
+                frame[index..index+4].copy_from_slice(&color);
+            }
+        }
+    }
 }

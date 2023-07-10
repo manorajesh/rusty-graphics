@@ -14,7 +14,7 @@ pub struct GameWindow {
 }
 
 impl GameWindow {
-    pub fn new(title: &str, event_loop: &EventLoop<()>, scale_factor: u32) -> Result<Self, Error> {
+    pub fn new(title: &str, event_loop: &EventLoop<()>, scale_factor: f64) -> Result<Self, Error> {
         let size = LogicalSize::new(WIDTH, HEIGHT);
         let window = WindowBuilder::new()
             .with_title(title)
@@ -22,7 +22,7 @@ impl GameWindow {
             .build(event_loop)
             .unwrap();
 
-        let texture_size = (WIDTH/scale_factor, HEIGHT/scale_factor);  // Replace with the desired texture size
+        let texture_size = ((WIDTH as f64*scale_factor) as u32, (HEIGHT as f64*scale_factor) as u32);  // Replace with the desired texture size
         let surface_texture = SurfaceTexture::new(texture_size.0, texture_size.1, &window);
         let pixels = Pixels::new(texture_size.0, texture_size.1, surface_texture)?;
 
