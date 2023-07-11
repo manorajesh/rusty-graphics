@@ -71,6 +71,16 @@ where
     }
 }
 
+impl<T> std::ops::MulAssign for Vector<T>
+where
+    T: std::ops::MulAssign,
+{
+    fn mul_assign(&mut self, rhs: Self) {
+        self.x *= rhs.x;
+        self.y *= rhs.y;
+    }
+}
+
 impl<T> std::ops::SubAssign for Vector<T>
 where
     T: std::ops::SubAssign,
@@ -145,76 +155,86 @@ impl RayCaster {
     }
 
     pub fn draw(&self, frame: &mut [u8]) -> Result<(), String> {
-        
-        // raycasting
-        // let half_fov = self.fov as i32 / 2;
-        for i in 0..WIDTH {
-            let mut ray = Ray {
-                dir: self.player.dir.rotate(i as f64),
-                distance: 0.,
-                hit: false,
+        const NUMRAYS: f64 = WIDTH as f64;
+        for i in 0..NUMRAYS as usize {
+            let ray_angle = self.fov/NUMRAYS * i as f64 * 1f64.to_radians();
+    
+            let ray_dir = self.player.dir.rotate(ray_angle);
+    
+            let delta_dist = Vector {
+                x: (1.0 / ray_dir.x).abs(),
+                y: (1.0 / ray_dir.y).abs(),
             };
-
-            let mut pos = self.player.pos;
-            while !ray.hit {
-                pos += ray.dir;
-                ray.distance += 1.;
-                if self.map[pos.y as usize][pos.x as usize] != 0 {
-                    ray.hit = true;
+    
+            let mut map_pos = Vector {
+                x: self.player.pos.x.floor() as i32,
+                y: self.player.pos.y.floor() as i32,
+            };
+    
+            let step = Vector {
+                x: if ray_dir.x < 0.0 { -1 } else { 1 },
+                y: if ray_dir.y < 0.0 { -1 } else { 1 },
+            };
+    
+            let mut side_dist = Vector {
+                x: if ray_dir.x < 0.0 { (self.player.pos.x - map_pos.x as f64) * delta_dist.x }
+                    else { (map_pos.x as f64 + 1.0 - self.player.pos.x) * delta_dist.x },
+                y: if ray_dir.y < 0.0 { (self.player.pos.y - map_pos.y as f64) * delta_dist.y }
+                    else { (map_pos.y as f64 + 1.0 - self.player.pos.y) * delta_dist.y },
+            };
+    
+            let mut hit = false;
+            let mut side = 0;
+    
+            while !hit {
+                if side_dist.x < side_dist.y {
+                    side_dist.x += delta_dist.x;
+                    map_pos.x += step.x;
+                    side = 0;
+                } else {
+                    side_dist.y += delta_dist.y;
+                    map_pos.y += step.y;
+                    side = 1;
+                }
+    
+                if self.map[map_pos.y as usize][map_pos.x as usize] > 0 {
+                    hit = true;
                 }
             }
+    
+            let distance = if side == 0 {
+                (map_pos.x as f64 - self.player.pos.x + (1. - step.x as f64) / 2.) / ray_dir.x
+            } else {
+                (map_pos.y as f64 - self.player.pos.y + (1. - step.y as f64) / 2.) / ray_dir.y
+            };
+    
+            let mut color = match self.map[map_pos.y as usize][map_pos.x as usize] {
+                1 => [255, 0, 0, 255],
+                2 => [0, 255, 0, 255],
+                3 => [0, 0, 255, 255],
+                4 => [255, 255, 0, 255],
+                5 => [255, 0, 255, 255],
+                _ => [255, 255, 255, 255],
+            };
 
-            let color = [255, 255, 255, 100];
-
-            let height = (1. / ray.distance) * 300.;
-
-            let half_height = (height / 2.) as i32;
-
-            line(frame, i as i32, WIDTH as i32/2-half_height, i as i32, WIDTH as i32/2+half_height, color, 1);
-
-            // if ray.distance < 5. {
-            //     color = [255, 0, 0, 255];
-            // } else if ray.distance < 10. {
-            //     color = [255, 255, 0, 255];
-            // } else if ray.distance < 15. {
-            //     color = [0, 255, 0, 255];
-            // } else if ray.distance < 20. {
-            //     color = [0, 255, 255, 255];
-            // } else if ray.distance < 25. {
-            //     color = [0, 0, 255, 255];
-            // }
-
-            // let height = (1. / ray.distance) * 100.;
-
-            // filled_rectangle(frame, i, 0, i+1, height as usize, color, PIXELSIZE);
-
-            
-
-            // line(frame, self.player.pos.x as i32, self.player.pos.y as i32, pos.x as i32, pos.y as i32, color, 1);
+            if side == 1 {
+                color.iter_mut().for_each(|c| *c /= 2);
+            }
+    
+            let line_height = (HEIGHT as f64 / distance).abs() * 10.;
+            let half_line_height = line_height / 2.0;
+    
+            let column_start = (HEIGHT as f64 / 2.0 - half_line_height).max(0.0) as i32;
+            let column_end = (HEIGHT as f64 / 2.0 + half_line_height).min(HEIGHT as f64) as i32;
+    
+            line(frame, i as i32, column_start, i as i32, column_end, color, 1);
+    
+            line(frame, self.player.pos.x as i32, self.player.pos.y as i32, map_pos.x as i32, map_pos.y as i32, color, 1);
         }
-
-        // map
-        // for y in 0..self.map.len() {
-        //     for x in 0..self.map[y].len() {
-        //         let color = match self.map[y][x] {
-        //             1 => Some([255, 0, 0, 255]),
-        //             2 => Some([0, 255, 0, 255]),
-        //             3 => Some([0, 0, 255, 255]),
-        //             4 => Some([255, 255, 255, 255]),
-        //             5 => Some([255, 255, 0, 255]),
-        //             _ => None,
-        //         };
-
-        //         if let Some(color) = color {
-        //             set_pixel(frame, x, y, color, PIXELSIZE);
-        //         }
-        //         // filled_rectangle(frame, x, y, x+1, y+2, color, PIXELSIZE)
-        //     }
-        // }
-
-        // set_pixel(frame, self.player.pos.x as usize, self.player.pos.y as usize, [255, 255, 255, 255], 1);
+    
         Ok(())
     }
+    
 
     pub fn change_direction(&mut self, dir: Direction) {
         const MOVESPEED: f64 = 1.;
@@ -226,10 +246,10 @@ impl RayCaster {
                 self.player.pos += Vector::new(0., -1.) * MOVESPEED;
             },
             Direction::Left => {
-                self.player.pos += Vector::new(-1., 0.) * MOVESPEED;
+                self.player.dir = self.player.dir.rotate(-10f64.to_radians());
             },
             Direction::Right => {
-                self.player.pos += Vector::new(1., 0.) * MOVESPEED;
+                self.player.dir = self.player.dir.rotate(10f64.to_radians());
             },
             Direction::Mouse(dx, dy) => {
                 println!("dx: {}, dy: {}", dx, dy);
