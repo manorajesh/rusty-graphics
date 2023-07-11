@@ -8,7 +8,7 @@ pub const PIXELSIZE: usize = 1;
 pub struct RayCaster {
     player: Player,
     map: [[u8; MAPWIDTH]; MAPHEIGHT],
-    fov: usize,
+    fov: f64,
 }
 
 struct Ray {
@@ -104,7 +104,7 @@ pub enum Direction {
 }
 
 impl RayCaster {
-    pub fn new(fov: usize) -> Self {
+    pub fn new(fov: f64) -> Self {
         Self {
             player: Player {
                 pos: Vector { x: 22.0, y: 12.0 },
@@ -145,11 +145,12 @@ impl RayCaster {
     }
 
     pub fn draw(&self, frame: &mut [u8]) -> Result<(), String> {
+        
         // raycasting
-
-        for i in 0..1000 {
+        let half_fov = self.fov as i32 / 2;
+        for i in -half_fov..half_fov {
             let mut ray = Ray {
-                dir: self.player.dir.rotate(i as f64),
+                dir: self.player.dir.rotate(i as f64 * 1f64.to_radians()),
                 distance: 0.,
                 hit: false,
             };
@@ -222,10 +223,20 @@ impl RayCaster {
                 self.player.pos += Vector::new(1., 0.) * MOVESPEED;
             },
             Direction::Mouse(dx, dy) => {
-                // self.player.pos += Vector::new(dx as f64, dy as f64) * 0.1;
-                // if self.player.pos > Vector::new(320., 240.) {
-                //     self.player.pos = Vector::new(320.-1., 240.-1.);
-                // }
+                println!("dx: {}, dy: {}", dx, dy);
+                self.player.pos += Vector::new(dx as f64, dy as f64);
+
+                if self.player.pos.x < 0. {
+                    self.player.pos.x = 0.;
+                } else if self.player.pos.x > WIDTH as f64-1. {
+                    self.player.pos.x = WIDTH as f64-1.;
+                }
+
+                if self.player.pos.y < 0. {
+                    self.player.pos.y = 0.;
+                } else if self.player.pos.y > HEIGHT as f64-1. {
+                    self.player.pos.y = HEIGHT as f64-1.;
+                }
             }
         }
     }
