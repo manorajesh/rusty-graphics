@@ -204,7 +204,7 @@ impl RayCaster {
 
             // let correct_distance = ray.distance * angle.cos();
 
-            let height = (HEIGHT as f64 / ray.distance) * 10.;
+            let height = (HEIGHT as f64 / ray.distance) * 15.;
 
             let column_start = HEIGHT as isize / 2 - height as isize / 2;
             let column_end = HEIGHT as isize / 2 + height as isize / 2;
@@ -253,35 +253,23 @@ impl RayCaster {
     }
 
     pub fn change_direction(&mut self, dir: Direction) {
-        const MOVESPEED: f64 = 1.;
+        const MOVESPEED: f64 = 2.;
         let old_pos = self.player.pos;
         match dir {
             Direction::Down => {
-                self.player.pos += Vector::new(0., 1.) * MOVESPEED;
+                self.player.pos -= self.player.dir * MOVESPEED;
             },
             Direction::Up => {
-                self.player.pos += Vector::new(0., -1.) * MOVESPEED;
+                self.player.pos += self.player.dir * MOVESPEED;
             },
             Direction::Left => {
-                self.player.dir = self.player.dir.rotate(-10f64.to_radians());
+                self.player.pos -= self.player.dir.rotate(90.) * MOVESPEED;
             },
             Direction::Right => {
-                self.player.dir = self.player.dir.rotate(10f64.to_radians());
+                self.player.pos += self.player.dir.rotate(90.) * MOVESPEED;
             },
-            Direction::Mouse(dx, dy) => {
-                self.player.pos += Vector::new(dx as f64, dy as f64);
-
-                if self.player.pos.x < 0. {
-                    self.player.pos.x = 0.;
-                } else if self.player.pos.x > WIDTH as f64-1. {
-                    self.player.pos.x = WIDTH as f64-1.;
-                }
-
-                if self.player.pos.y < 0. {
-                    self.player.pos.y = 0.;
-                } else if self.player.pos.y > HEIGHT as f64-1. {
-                    self.player.pos.y = HEIGHT as f64-1.;
-                }
+            Direction::Mouse(dx, _) => {
+                self.player.dir = self.player.dir.rotate(dx as f64 * 0.1);
             }
         }
 

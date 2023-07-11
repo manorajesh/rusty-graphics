@@ -54,16 +54,16 @@ fn main() -> Result<(), Error> {
             } => {
                 // println!("Keyboard input detected");
                 match input.virtual_keycode {
-                    Some(VirtualKeyCode::Up) if input.state == ElementState::Pressed => {
+                    Some(VirtualKeyCode::W) if input.state == ElementState::Pressed => {
                         raycaster.change_direction(raycaster::Direction::Up)
                     }
-                    Some(VirtualKeyCode::Down) if input.state == ElementState::Pressed => {
+                    Some(VirtualKeyCode::S) if input.state == ElementState::Pressed => {
                         raycaster.change_direction(raycaster::Direction::Down)
                     }
-                    Some(VirtualKeyCode::Left) if input.state == ElementState::Pressed => {
+                    Some(VirtualKeyCode::A) if input.state == ElementState::Pressed => {
                         raycaster.change_direction(raycaster::Direction::Left)
                     }
-                    Some(VirtualKeyCode::Right) if input.state == ElementState::Pressed => {
+                    Some(VirtualKeyCode::D) if input.state == ElementState::Pressed => {
                         raycaster.change_direction(raycaster::Direction::Right)
                     }
                     _ => {}
