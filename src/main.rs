@@ -81,46 +81,40 @@ fn main() -> Result<(), Error> {
     });
 }
 
-fn verline(frame: &mut [u8], x: usize, y1: usize, y2: usize, rgba: &[u8; 4], thickness: f64, scale: usize) {
-    let half_thickness = ((thickness / 2.0).ceil() as i64) * scale as i64;
-
-    for t in -half_thickness..=half_thickness {
-        let x = if ((x as i64 + t) as usize) < (WIDTH * scale as u32) as usize {
-            (x as i64 + t) as usize
-        } else {
-            x
-        };
-
-        for y in (y1 * scale)..=(y2 * scale) {
-            set_pixel(frame, x, y, *rgba, scale);
-        }
+fn verline(frame: &mut [u8], x: usize, y1: usize, y2: usize, rgba: &[u8; 4], scale: usize) {
+    for y in (y1 * scale)..=(y2 * scale) {
+        set_pixel(frame, x, y, *rgba, scale);
     }
 }
 
-pub fn line(frame: &mut [u8], x1: i32, y1: i32, x2: i32, y2: i32, color: [u8; 4], scale: usize) {
-    let dx = i32::abs(x2 - x1) * scale as i32;
+pub fn line(frame: &mut [u8], x1: isize, y1: isize, x2: isize, y2: isize, color: [u8; 4], scale: usize) {
+    if x1 == x2 {
+        verline(frame, x1 as usize, y1 as usize, y2 as usize, &color, scale);
+        return;
+    }
+    let dx = isize::abs(x2 - x1) * scale as isize;
     let sx = if x1 < x2 { 1 } else { -1 };
-    let dy = -i32::abs(y2 - y1) * scale as i32;
+    let dy = -isize::abs(y2 - y1) * scale as isize;
     let sy = if y1 < y2 { 1 } else { -1 };
     let mut err = dx + dy;
-    let mut x = x1 * scale as i32;
-    let mut y = y1 * scale as i32;
+    let mut x = x1 * scale as isize;
+    let mut y = y1 * scale as isize;
 
     loop {
         set_pixel(frame, x as usize, y as usize, color, scale);
 
-        if x == x2 * scale as i32 && y == y2 * scale as i32 { break }
+        if x == x2 * scale as isize && y == y2 * scale as isize { break }
 
         let e2 = 2 * err;
 
         if e2 >= dy {
             err += dy;
-            x += sx * scale as i32;
+            x += sx * scale as isize;
         }
 
         if e2 <= dx {
             err += dx;
-            y += sy * scale as i32;
+            y += sy * scale as isize;
         }
     }
 }
@@ -137,11 +131,14 @@ fn filled_rectangle(frame: &mut [u8], x1: usize, y1: usize, x2: usize, y2: usize
 pub fn set_pixel(frame: &mut [u8], x: usize, y: usize, color: [u8; 4], scale: usize) {
     for i in 0..scale {
         for j in 0..scale {
-            let index = (((y * scale + j) * WIDTH as usize + (x * scale + i)) * 4) as usize;
-            if index < frame.len() {
-                frame[index..index+4].copy_from_slice(&color);
+            let xi = x * scale + i;
+            let yj = y * scale + j;
+            if xi < WIDTH as usize && yj < HEIGHT as usize {
+                let index = ((yj * WIDTH as usize + xi) * 4) as usize;
+                if index + 4 <= frame.len() {
+                    frame[index..index+4].copy_from_slice(&color);
+                }
             }
         }
     }
 }
-
