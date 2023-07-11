@@ -7,13 +7,13 @@ use winit::{
 mod raycaster;
 mod window;
 
-pub const WIDTH: u32 = 320;
-pub const HEIGHT: u32 = 240;
-pub const SCALEFACTOR: f64 = 1.;
+pub const WIDTH: u32 = 640;
+pub const HEIGHT: u32 = 480;
+pub const AA_SCALEFACTOR: u32 = 2;
 
 fn main() -> Result<(), Error> {
     let event_loop = EventLoop::new();
-    let mut gw = window::GameWindow::new("2D Raycaster", &event_loop, SCALEFACTOR)?;
+    let mut gw = window::GameWindow::new("2D Raycaster", &event_loop)?;
     let mut raycaster = raycaster::RayCaster::new(60.);
     let mut map_toggle = false;
     // gw.pixels.resize_buffer(960, 720).unwrap();
@@ -22,7 +22,7 @@ fn main() -> Result<(), Error> {
         match event {
             Event::RedrawRequested(_) => {
                 // println!("Redraw requested");
-                let frame = gw.pixels.frame_mut();
+                let frame = &mut gw.buffer;
 
                 // Clear the frame
                 for pixel in frame.chunks_exact_mut(4) {
@@ -30,8 +30,8 @@ fn main() -> Result<(), Error> {
                 }
 
                 raycaster.update_player();
-
                 raycaster.draw(frame, map_toggle).unwrap();
+                gw.downsample();
                 gw.pixels.render().unwrap();
             }
 
@@ -89,7 +89,7 @@ fn main() -> Result<(), Error> {
 
 fn verline(frame: &mut [u8], x: usize, y1: usize, y2: usize, rgba: &[u8; 4], scale: usize) {
     for y in (y1 * scale)..=(y2 * scale) {
-        set_pixel(frame, x, y, *rgba, scale);
+        set_pixel(frame, x, y, *rgba, scale, None, None);
     }
 }
 
@@ -107,7 +107,7 @@ pub fn line(frame: &mut [u8], x1: isize, y1: isize, x2: isize, y2: isize, color:
     let mut y = y1 * scale as isize;
 
     loop {
-        set_pixel(frame, x as usize, y as usize, color, scale);
+        set_pixel(frame, x as usize, y as usize, color, scale, None, None);
 
         if x == x2 * scale as isize && y == y2 * scale as isize { break }
 
@@ -125,26 +125,38 @@ pub fn line(frame: &mut [u8], x1: isize, y1: isize, x2: isize, y2: isize, color:
     }
 }
 
-fn filled_rectangle(frame: &mut [u8], x1: usize, y1: usize, x2: usize, y2: usize, color: [u8; 4], scale: usize) {
-    for x in (x1*scale)..=(x2*scale) {
-        for y in (y1*scale)..=(y2*scale) {
-            if x >= WIDTH as usize || y >= HEIGHT as usize { continue }
-            set_pixel(frame, x, y, color, scale);
-        }
-    }
-}
+// fn filled_rectangle(frame: &mut [u8], x1: usize, y1: usize, x2: usize, y2: usize, color: [u8; 4], scale: usize) {
+//     for x in (x1*scale)..=(x2*scale) {
+//         for y in (y1*scale)..=(y2*scale) {
+//             if x >= WIDTH as usize || y >= HEIGHT as usize { continue }
+//             set_pixel(frame, x, y, color, scale);
+//         }
+//     }
+// }
 
-pub fn set_pixel(frame: &mut [u8], x: usize, y: usize, color: [u8; 4], scale: usize) {
+pub fn set_pixel(frame: &mut [u8], x: usize, y: usize, color: [u8; 4], scale: usize, width: Option<u32>, height: Option<u32>) {
+    let width = if let Some(w) = width { w } else { WIDTH };
+    let height = if let Some(h) = height { h } else { HEIGHT };
     for i in 0..scale {
         for j in 0..scale {
             let xi = x * scale + i;
             let yj = y * scale + j;
-            if xi < WIDTH as usize && yj < HEIGHT as usize {
-                let index = ((yj * WIDTH as usize + xi) * 4) as usize;
+            if xi < width as usize && yj < height as usize {
+                let index = ((yj * width as usize + xi) * 4) as usize;
                 if index + 4 <= frame.len() {
                     frame[index..index+4].copy_from_slice(&color);
                 }
             }
         }
+    }
+}
+
+pub fn get_pixel(frame: &[u8], x: usize, y: usize) -> Option<[u8; 4]> {
+    let index = ((y * WIDTH as usize + x) * 4) as usize;
+    if index + 4 <= frame.len() {
+        let color: [u8; 4] = frame[index..index+4].try_into().unwrap();
+        Some(color)
+    } else {
+        None
     }
 }

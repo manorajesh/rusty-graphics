@@ -179,13 +179,13 @@ impl RayCaster {
                     };
 
                     if let Some(color) = color {
-                        set_pixel(frame, x, y, color, 1);
+                        set_pixel(frame, x, y, color, 1, None, None);
                     }
                     // filled_rectangle(frame, x, y, x+1, y+2, color, PIXELSIZE)
                 }
             }
 
-            set_pixel(frame, self.player.pos.x as usize, self.player.pos.y as usize, [25, 0, 255, 255], 1);
+            set_pixel(frame, self.player.pos.x as usize, self.player.pos.y as usize, [25, 0, 255, 255], 1, None, None);
             line(frame, self.player.pos.x as isize, self.player.pos.y as isize, (self.player.pos.x + self.player.dir.x * 10.) as isize, (self.player.pos.y + self.player.dir.y * 10.) as isize, [255, 0, 0, 255], 1);
             return Ok(());
         }
