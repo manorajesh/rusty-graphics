@@ -14,7 +14,7 @@ pub const SCALEFACTOR: f64 = 1.;
 fn main() -> Result<(), Error> {
     let event_loop = EventLoop::new();
     let mut gw = window::GameWindow::new("2D Raycaster", &event_loop, SCALEFACTOR)?;
-    let mut raycaster = raycaster::RayCaster::new(60);
+    let mut raycaster = raycaster::RayCaster::new(60.);
     // gw.pixels.resize_buffer(960, 720).unwrap();
 
     event_loop.run(move |event, _, control_flow| {

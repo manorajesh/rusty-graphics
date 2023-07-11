@@ -8,7 +8,7 @@ pub const PIXELSIZE: usize = 1;
 pub struct RayCaster {
     player: Player,
     map: [[u8; MAPWIDTH]; MAPHEIGHT],
-    fov: usize,
+    fov: f64,
 }
 
 struct Ray {
@@ -104,7 +104,7 @@ pub enum Direction {
 }
 
 impl RayCaster {
-    pub fn new(fov: usize) -> Self {
+    pub fn new(fov: f64) -> Self {
         Self {
             player: Player {
                 pos: Vector { x: 22.0, y: 12.0 },
@@ -145,11 +145,12 @@ impl RayCaster {
     }
 
     pub fn draw(&self, frame: &mut [u8]) -> Result<(), String> {
+        
         // raycasting
-
-        for i in 0..1000 {
+        let half_fov = self.fov as i32 / 2;
+        for i in -half_fov..half_fov {
             let mut ray = Ray {
-                dir: self.player.dir.rotate(i as f64),
+                dir: self.player.dir.rotate(i as f64 * 1f64.to_radians()),
                 distance: 0.,
                 hit: false,
             };
