@@ -1,4 +1,4 @@
-use crate::{HEIGHT, WIDTH, line};
+use crate::{HEIGHT, WIDTH, line, set_pixel};
 
 pub const MAPHEIGHT: usize = 240;
 pub const MAPWIDTH: usize = 320;
@@ -18,6 +18,7 @@ struct Ray {
 struct Player {
     pub pos: Vector<f64>,
     pub dir: Vector<f64>,
+    pub vel: f64,
 }
 
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
@@ -50,7 +51,6 @@ impl<T> Vector<T> {
     {
         let x = self.x.into();
         let y = self.y.into();
-
         y.atan2(x)
     }
 }
@@ -127,6 +127,7 @@ impl RayCaster {
             player: Player {
                 pos: Vector { x: 22.0, y: 12.0 },
                 dir: Vector { x: -1.0, y: 0.0 },
+                vel: 0.0,
             },
 
             map: generate_map(),
@@ -162,13 +163,38 @@ impl RayCaster {
         }
     }
 
-    pub fn draw(&self, frame: &mut [u8]) -> Result<(), String> {
+    pub fn draw(&self, frame: &mut [u8], map_toggle: bool) -> Result<(), String> {
+
+        if map_toggle {
+            // map
+            for y in 0..self.map.len() {
+                for x in 0..self.map[y].len() {
+                    let color = match self.map[y][x] {
+                        1 => Some([255, 0, 0, 255]),
+                        2 => Some([0, 255, 0, 255]),
+                        3 => Some([0, 0, 255, 255]),
+                        4 => Some([255, 255, 255, 255]),
+                        5 => Some([255, 255, 0, 255]),
+                        _ => None,
+                    };
+
+                    if let Some(color) = color {
+                        set_pixel(frame, x, y, color, 1);
+                    }
+                    // filled_rectangle(frame, x, y, x+1, y+2, color, PIXELSIZE)
+                }
+            }
+
+            set_pixel(frame, self.player.pos.x as usize, self.player.pos.y as usize, [25, 0, 255, 255], 1);
+            line(frame, self.player.pos.x as isize, self.player.pos.y as isize, (self.player.pos.x + self.player.dir.x * 10.) as isize, (self.player.pos.y + self.player.dir.y * 10.) as isize, [255, 0, 0, 255], 1);
+            return Ok(());
+        }
         
         // raycasting
-        // let half_fov = self.fov as isize / 2;
+        let half_fov: f64 = self.fov / 2.;
         const NUMRAYS: f64 = WIDTH as f64;
         for i in 0..NUMRAYS as usize {
-            let angle = self.fov/NUMRAYS * i as f64 * 1f64.to_radians();
+            let angle = (self.fov/NUMRAYS * i as f64 - half_fov) * 1f64.to_radians();
             let mut ray = Ray {
                 dir: self.player.dir.rotate(angle),
                 distance: 0.,
@@ -208,11 +234,11 @@ impl RayCaster {
                 color.div_assign(2)
             }
 
-            println!("angle: {:.02}, distance: {}", (angle+self.player.dir.angle()).to_degrees(), ray.distance);
+            println!("angle: {:.02}, distance: {}", (self.player.dir.angle()), ray.distance);
 
-            // let correct_distance = ray.distance * (angle+self.player.dir.angle()-PI).cos();
+            let correct_distance = ray.distance * angle.cos();
 
-            let mut height = (HEIGHT as f64 / ray.distance) * 20.;
+            let mut height = (HEIGHT as f64 / correct_distance) * 15.;
             if height > HEIGHT as f64 {
                 height = HEIGHT as f64;
             }
@@ -239,28 +265,28 @@ impl RayCaster {
 
             // line(frame, self.player.pos.x as isize, self.player.pos.y as isize, pos.x as isize, pos.y as isize, color, 1);
         }
-
-        // map
-        // for y in 0..self.map.len() {
-        //     for x in 0..self.map[y].len() {
-        //         let color = match self.map[y][x] {
-        //             1 => Some([255, 0, 0, 255]),
-        //             2 => Some([0, 255, 0, 255]),
-        //             3 => Some([0, 0, 255, 255]),
-        //             4 => Some([255, 255, 255, 255]),
-        //             5 => Some([255, 255, 0, 255]),
-        //             _ => None,
-        //         };
-
-        //         if let Some(color) = color {
-        //             set_pixel(frame, x, y, color, PIXELSIZE);
-        //         }
-        //         // filled_rectangle(frame, x, y, x+1, y+2, color, PIXELSIZE)
-        //     }
-        // }
-
-        // set_pixel(frame, self.player.pos.x as usize, self.player.pos.y as usize, [255, 255, 255, 255], 1);
         Ok(())
+    }
+
+    pub fn update_player(&mut self) {
+        let old_pos = self.player.pos;
+        if self.player.pos.x > 0. && self.player.pos.x < WIDTH as f64 {
+            self.player.pos.x += self.player.dir.x * self.player.vel;
+        }
+
+        if self.map[self.player.pos.y as usize][self.player.pos.x as usize] != 0 {
+            self.player.pos = old_pos;
+        }
+
+        let old_pos = self.player.pos;
+        if self.player.pos.y > 0. && self.player.pos.y < HEIGHT as f64 {
+            self.player.pos.y += self.player.dir.y * self.player.vel;
+        }
+
+        if self.map[self.player.pos.y as usize][self.player.pos.x as usize] != 0 {
+            self.player.pos = old_pos;
+        }
+        self.player.vel *= 0.9;
     }
 
     pub fn change_direction(&mut self, dir: Direction) {
@@ -269,10 +295,10 @@ impl RayCaster {
         let old_pos = self.player.pos;
         match dir {
             Direction::Down => {
-                self.player.pos -= self.player.dir * MOVESPEED;
+                self.player.vel -= 0.1;
             },
             Direction::Up => {
-                self.player.pos += self.player.dir * MOVESPEED;
+                self.player.vel += 0.1;
             },
             Direction::Left => {
                 self.player.pos -= self.player.dir.rotate(90.) * MOVESPEED;

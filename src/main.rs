@@ -15,6 +15,7 @@ fn main() -> Result<(), Error> {
     let event_loop = EventLoop::new();
     let mut gw = window::GameWindow::new("2D Raycaster", &event_loop, SCALEFACTOR)?;
     let mut raycaster = raycaster::RayCaster::new(60.);
+    let mut map_toggle = false;
     // gw.pixels.resize_buffer(960, 720).unwrap();
 
     event_loop.run(move |event, _, control_flow| {
@@ -25,10 +26,12 @@ fn main() -> Result<(), Error> {
 
                 // Clear the frame
                 for pixel in frame.chunks_exact_mut(4) {
-                    pixel.copy_from_slice(&[0, 0, 0, 255]); // Set every pixel to black
+                    pixel.copy_from_slice(&[255, 255, 255, 100]); // Set every pixel to black
                 }
 
-                raycaster.draw(frame).unwrap();
+                raycaster.update_player();
+
+                raycaster.draw(frame, map_toggle).unwrap();
                 gw.pixels.render().unwrap();
             }
 
@@ -65,6 +68,9 @@ fn main() -> Result<(), Error> {
                     }
                     Some(VirtualKeyCode::D) if input.state == ElementState::Pressed => {
                         raycaster.change_direction(raycaster::Direction::Right)
+                    }
+                    Some(VirtualKeyCode::M) if input.state == ElementState::Pressed => {
+                        map_toggle = !map_toggle;
                     }
                     _ => {}
                 }
