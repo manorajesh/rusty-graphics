@@ -234,9 +234,9 @@ impl RayCaster {
                 color.div_assign(2)
             }
 
-            println!("angle: {:.02}, distance: {}", (self.player.dir.angle()), ray.distance);
+            println!("angle: {:.02}, distance: {}", (ray.dir.angle() - self.player.dir.angle()).cos(), ray.distance);
 
-            let correct_distance = ray.distance * angle.cos();
+            let correct_distance = ray.distance * (self.player.dir.angle() - ray.dir.angle()).cos();
 
             let mut height = (HEIGHT as f64 / correct_distance) * 15.;
             if height > HEIGHT as f64 {
