@@ -1,9 +1,7 @@
-use crate::{verline, HEIGHT, WIDTH, line, set_pixel, filled_rectangle};
+use crate::{HEIGHT, WIDTH, line};
 
 pub const MAPHEIGHT: usize = 240;
 pub const MAPWIDTH: usize = 320;
-
-pub const PIXELSIZE: usize = 1;
 
 pub struct RayCaster {
     player: Player,
@@ -207,12 +205,14 @@ impl RayCaster {
             };
 
             if side == 1 {
-                color[0] /= 2;
-                color[1] /= 2;
-                color[2] /= 2;
+                color.div_assign(2)
             }
 
-            let mut height = (HEIGHT as f64 / ray.distance) * 15.;
+            println!("angle: {:.02}, distance: {}", (angle+self.player.dir.angle()).to_degrees(), ray.distance);
+
+            // let correct_distance = ray.distance * (angle+self.player.dir.angle()-PI).cos();
+
+            let mut height = (HEIGHT as f64 / ray.distance) * 20.;
             if height > HEIGHT as f64 {
                 height = HEIGHT as f64;
             }
@@ -264,7 +264,7 @@ impl RayCaster {
     }
 
     pub fn change_direction(&mut self, dir: Direction) {
-        const MOVESPEED: f64 = 2.;
+        const MOVESPEED: f64 = 5.;
         const ROTATESPEED: f64 = 0.01;
         let old_pos = self.player.pos;
         match dir {
