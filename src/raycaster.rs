@@ -45,6 +45,16 @@ impl<T> Vector<T> {
 
         Vector::new(new_x, new_y)
     }
+
+    pub fn angle(&self) -> f64
+    where
+        T: Into<f64> + From<f64> + Copy,
+    {
+        let x = self.x.into();
+        let y = self.y.into();
+
+        y.atan2(x)
+    }
 }
 
 impl<T> std::ops::Add for Vector<T>
@@ -202,9 +212,10 @@ impl RayCaster {
                 color[2] /= 2;
             }
 
-            // let correct_distance = ray.distance * angle.cos();
-
-            let height = (HEIGHT as f64 / ray.distance) * 15.;
+            let mut height = (HEIGHT as f64 / ray.distance) * 15.;
+            if height > HEIGHT as f64 {
+                height = HEIGHT as f64;
+            }
 
             let column_start = HEIGHT as isize / 2 - height as isize / 2;
             let column_end = HEIGHT as isize / 2 + height as isize / 2;
@@ -254,6 +265,7 @@ impl RayCaster {
 
     pub fn change_direction(&mut self, dir: Direction) {
         const MOVESPEED: f64 = 2.;
+        const ROTATESPEED: f64 = 0.01;
         let old_pos = self.player.pos;
         match dir {
             Direction::Down => {
@@ -269,7 +281,7 @@ impl RayCaster {
                 self.player.pos += self.player.dir.rotate(90.) * MOVESPEED;
             },
             Direction::Mouse(dx, _) => {
-                self.player.dir = self.player.dir.rotate(dx as f64 * 0.1);
+                self.player.dir = self.player.dir.rotate(dx as f64 * ROTATESPEED);
             }
         }
 
