@@ -222,10 +222,20 @@ impl RayCaster {
                 self.player.pos += Vector::new(1., 0.) * MOVESPEED;
             },
             Direction::Mouse(dx, dy) => {
-                // self.player.pos += Vector::new(dx as f64, dy as f64) * 0.1;
-                // if self.player.pos > Vector::new(320., 240.) {
-                //     self.player.pos = Vector::new(320.-1., 240.-1.);
-                // }
+                println!("dx: {}, dy: {}", dx, dy);
+                self.player.pos += Vector::new(dx as f64, dy as f64);
+
+                if self.player.pos.x < 0. {
+                    self.player.pos.x = 0.;
+                } else if self.player.pos.x > WIDTH as f64-1. {
+                    self.player.pos.x = WIDTH as f64-1.;
+                }
+
+                if self.player.pos.y < 0. {
+                    self.player.pos.y = 0.;
+                } else if self.player.pos.y > HEIGHT as f64-1. {
+                    self.player.pos.y = HEIGHT as f64-1.;
+                }
             }
         }
     }
