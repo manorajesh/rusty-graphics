@@ -147,10 +147,10 @@ impl RayCaster {
     pub fn draw(&self, frame: &mut [u8]) -> Result<(), String> {
         
         // raycasting
-        let half_fov = self.fov as i32 / 2;
-        for i in -half_fov..half_fov {
+        // let half_fov = self.fov as i32 / 2;
+        for i in 0..WIDTH {
             let mut ray = Ray {
-                dir: self.player.dir.rotate(i as f64 * 1f64.to_radians()),
+                dir: self.player.dir.rotate(i as f64),
                 distance: 0.,
                 hit: false,
             };
@@ -165,6 +165,12 @@ impl RayCaster {
             }
 
             let color = [255, 255, 255, 100];
+
+            let height = (1. / ray.distance) * 300.;
+
+            let half_height = (height / 2.) as i32;
+
+            line(frame, i as i32, WIDTH as i32/2-half_height, i as i32, WIDTH as i32/2+half_height, color, 1);
 
             // if ray.distance < 5. {
             //     color = [255, 0, 0, 255];
@@ -182,28 +188,31 @@ impl RayCaster {
 
             // filled_rectangle(frame, i, 0, i+1, height as usize, color, PIXELSIZE);
 
-            line(frame, self.player.pos.x as i32, self.player.pos.y as i32, pos.x as i32, pos.y as i32, color, 1);
+            
+
+            // line(frame, self.player.pos.x as i32, self.player.pos.y as i32, pos.x as i32, pos.y as i32, color, 1);
         }
 
-        for y in 0..self.map.len() {
-            for x in 0..self.map[y].len() {
-                let color = match self.map[y][x] {
-                    1 => Some([255, 0, 0, 255]),
-                    2 => Some([0, 255, 0, 255]),
-                    3 => Some([0, 0, 255, 255]),
-                    4 => Some([255, 255, 255, 255]),
-                    5 => Some([255, 255, 0, 255]),
-                    _ => None,
-                };
+        // map
+        // for y in 0..self.map.len() {
+        //     for x in 0..self.map[y].len() {
+        //         let color = match self.map[y][x] {
+        //             1 => Some([255, 0, 0, 255]),
+        //             2 => Some([0, 255, 0, 255]),
+        //             3 => Some([0, 0, 255, 255]),
+        //             4 => Some([255, 255, 255, 255]),
+        //             5 => Some([255, 255, 0, 255]),
+        //             _ => None,
+        //         };
 
-                if let Some(color) = color {
-                    set_pixel(frame, x, y, color, PIXELSIZE);
-                }
-                // filled_rectangle(frame, x, y, x+1, y+2, color, PIXELSIZE)
-            }
-        }
+        //         if let Some(color) = color {
+        //             set_pixel(frame, x, y, color, PIXELSIZE);
+        //         }
+        //         // filled_rectangle(frame, x, y, x+1, y+2, color, PIXELSIZE)
+        //     }
+        // }
 
-        set_pixel(frame, self.player.pos.x as usize, self.player.pos.y as usize, [255, 255, 255, 255], 1);
+        // set_pixel(frame, self.player.pos.x as usize, self.player.pos.y as usize, [255, 255, 255, 255], 1);
         Ok(())
     }
 
