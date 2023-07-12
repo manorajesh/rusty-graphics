@@ -7,9 +7,9 @@ use winit::{
 mod raycaster;
 mod window;
 
-pub const WIDTH: u32 = 640;
-pub const HEIGHT: u32 = 480;
 pub const AA_SCALEFACTOR: u32 = 2;
+pub const WIDTH: u32 = 320 * AA_SCALEFACTOR;
+pub const HEIGHT: u32 = 240 * AA_SCALEFACTOR;
 
 fn main() -> Result<(), Error> {
     let event_loop = EventLoop::new();

@@ -201,27 +201,59 @@ impl RayCaster {
                 hit: false,
             };
 
-            let mut pos = self.player.pos;
+            // map_pos is the current map cell we are in
+            let mut map_pos: Vector<i32> = Vector::new(self.player.pos.x.floor() as i32, self.player.pos.y.floor() as i32);
+
+            // delta of ray to next map cell
+            let delta_dist = Vector {
+                x: (1.0 / ray.dir.x).abs(),
+                y: (1.0 / ray.dir.y).abs(),
+            };
+
+            // step direction for map_pos
+            let step = Vector {
+                x: if ray.dir.x < 0. { -1. } else { 1. },
+                y: if ray.dir.y < 0. { -1. } else { 1. },
+            };
+
+            // ray distance from side of map cell (helps with determining direction to inc)
+            let mut side_dist: Vector<f64> = Vector {
+                x: if ray.dir.x < 0. {
+                    // top left edge of map cell
+                    (self.player.pos.x - map_pos.x as f64) * delta_dist.x
+                } else {
+                    // top right edge of map cell
+                    (map_pos.x as f64 + 1. - self.player.pos.x) * delta_dist.x
+                },
+                
+                y: if ray.dir.y < 0. {
+                    // top left edge of map cell
+                    (self.player.pos.y - map_pos.y as f64) * delta_dist.y
+                } else {
+                    // top right edge of map cell
+                    (map_pos.y as f64 + 1. - self.player.pos.y) * delta_dist.y
+                },
+            };
+
+            // DDA
             let mut side = 0;
             while !ray.hit {
-                pos.x += ray.dir.x;
-                if self.map[pos.y as usize][pos.x as usize] != 0 {
-                    ray.hit = true;
-                    break;
-                }
-
-                ray.distance += 0.5;
-
-                pos.y += ray.dir.y;
-                if self.map[pos.y as usize][pos.x as usize] != 0 {
-                    ray.hit = true;
+                if side_dist.x < side_dist.y {
+                    side_dist.x += delta_dist.x;
+                    map_pos.x += step.x as i32;
+                    side = 0;
+                } else {
+                    side_dist.y += delta_dist.y;
+                    map_pos.y += step.y as i32;
                     side = 1;
                 }
 
-                ray.distance += 0.5;
+                if self.map[map_pos.y as usize][map_pos.x as usize] > 0 {
+                    ray.hit = true;
+                }
             }
 
-            let mut color = match self.map[pos.y as usize][pos.x as usize] {
+            let mut color = match self.map[map_pos.y as usize][map_pos.x as usize] {
                 1 => [255, 0, 0, 255],
                 2 => [0, 255, 0, 255],
                 3 => [0, 0, 255, 255],
@@ -234,11 +266,17 @@ impl RayCaster {
                 color.div_assign(2)
             }
 
-            println!("angle: {:.02}, distance: {}", (ray.dir.angle() - self.player.dir.angle()).cos(), ray.distance);
+            let distance: f64 = if side == 0 {
+                (map_pos.x as f64 - self.player.pos.x + (1. - step.x) / 2.) / ray.dir.x
+            } else {
+                (map_pos.y as f64 - self.player.pos.y + (1. - step.y) / 2.) / ray.dir.y
+            };
 
-            let correct_distance = ray.distance * (self.player.dir.angle() - ray.dir.angle()).cos();
+            println!("angle: {:.02}, distance: {}", (ray.dir.angle() - self.player.dir.angle()).cos(), distance);
 
-            let mut height = (HEIGHT as f64 / correct_distance) * 15.;
+            // let correct_distance = ray.distance * (self.player.dir.angle() - ray.dir.angle()).cos();
+
+            let mut height = (HEIGHT as f64 / distance).abs() * 15.;
             if height > HEIGHT as f64 {
                 height = HEIGHT as f64;
             }
@@ -246,24 +284,6 @@ impl RayCaster {
             let column_start = HEIGHT as isize / 2 - height as isize / 2;
             let column_end = HEIGHT as isize / 2 + height as isize / 2;
             line(frame, i as isize, column_start, i as isize, column_end, color, 1);
-
-            // if ray.distance < 5. {
-            //     color = [255, 0, 0, 255];
-            // } else if ray.distance < 10. {
-            //     color = [255, 255, 0, 255];
-            // } else if ray.distance < 15. {
-            //     color = [0, 255, 0, 255];
-            // } else if ray.distance < 20. {
-            //     color = [0, 255, 255, 255];
-            // } else if ray.distance < 25. {
-            //     color = [0, 0, 255, 255];
-            // }
-
-            // let height = (1. / ray.distance) * 100.;
-
-            // filled_rectangle(frame, i, 0, i+1, height as usize, color, PIXELSIZE);
-
-            // line(frame, self.player.pos.x as isize, self.player.pos.y as isize, pos.x as isize, pos.y as isize, color, 1);
         }
         Ok(())
     }
@@ -295,10 +315,10 @@ impl RayCaster {
         let old_pos = self.player.pos;
         match dir {
             Direction::Down => {
-                self.player.vel -= 0.1;
+                self.player.vel -= 0.5;
             },
             Direction::Up => {
-                self.player.vel += 0.1;
+                self.player.vel += 0.5;
             },
             Direction::Left => {
                 self.player.pos -= self.player.dir.rotate(90.) * MOVESPEED;
