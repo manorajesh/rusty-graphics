@@ -1,22 +1,26 @@
 use pixels::Error;
 use winit::{
-    event::{ElementState, Event, VirtualKeyCode, WindowEvent, DeviceEvent},
+    event::{Event, VirtualKeyCode, WindowEvent, DeviceEvent},
     event_loop::EventLoop,
 };
+use winit_input_helper::WinitInputHelper;
+
 
 mod raycaster;
 mod window;
+mod vector;
 
-pub const WIDTH: u32 = 320;
-pub const HEIGHT: u32 = 240;
+pub const WIDTH: u32 = 1280;
+pub const HEIGHT: u32 = 720;
 pub const SCALEFACTOR: f64 = 1.;
 
 fn main() -> Result<(), Error> {
+    let mut input = WinitInputHelper::new();
+
     let event_loop = EventLoop::new();
     let mut gw = window::GameWindow::new("2D Raycaster", &event_loop, SCALEFACTOR)?;
     let mut raycaster = raycaster::RayCaster::new(60.);
     let mut map_toggle = false;
-    // gw.pixels.resize_buffer(960, 720).unwrap();
 
     event_loop.run(move |event, _, control_flow| {
         match event {
@@ -51,36 +55,58 @@ fn main() -> Result<(), Error> {
                 gw.resize((size.width, size.height));
             }
 
-            Event::WindowEvent {
-                event: WindowEvent::KeyboardInput { input, .. },
-                ..
-            } => {
-                // println!("Keyboard input detected");
-                match input.virtual_keycode {
-                    Some(VirtualKeyCode::W) if input.state == ElementState::Pressed => {
-                        raycaster.change_direction(raycaster::Direction::Up)
-                    }
-                    Some(VirtualKeyCode::S) if input.state == ElementState::Pressed => {
-                        raycaster.change_direction(raycaster::Direction::Down)
-                    }
-                    Some(VirtualKeyCode::A) if input.state == ElementState::Pressed => {
-                        raycaster.change_direction(raycaster::Direction::Left)
-                    }
-                    Some(VirtualKeyCode::D) if input.state == ElementState::Pressed => {
-                        raycaster.change_direction(raycaster::Direction::Right)
-                    }
-                    Some(VirtualKeyCode::M) if input.state == ElementState::Pressed => {
-                        map_toggle = !map_toggle;
-                    }
-                    _ => {}
-                }
-            }
+            // Event::WindowEvent {
+            //     event: WindowEvent::KeyboardInput { input, .. },
+            //     ..
+            // } => {
+            //     // println!("Keyboard input detected");
+            //     match input.virtual_keycode {
+            //         Some(VirtualKeyCode::W) if input.state == ElementState::Pressed => {
+            //             raycaster.change_direction(raycaster::Direction::Up)
+            //         }
+            //         Some(VirtualKeyCode::S) if input.state == ElementState::Pressed => {
+            //             raycaster.change_direction(raycaster::Direction::Down)
+            //         }
+            //         Some(VirtualKeyCode::A) if input.state == ElementState::Pressed => {
+            //             raycaster.change_direction(raycaster::Direction::Left)
+            //         }
+            //         Some(VirtualKeyCode::D) if input.state == ElementState::Pressed => {
+            //             raycaster.change_direction(raycaster::Direction::Right)
+            //         }
+            //         Some(VirtualKeyCode::M) if input.state == ElementState::Pressed => {
+            //             map_toggle = !map_toggle;
+            //         }
+            //         _ => {}
+            //     }
+            // }
 
             Event::DeviceEvent { event: DeviceEvent::MouseMotion { delta }, .. } => {
                 raycaster.change_direction(raycaster::Direction::Mouse(delta.0 as f64, delta.1 as f64))
             }
 
             _ => {}
+        }
+
+        if input.update(&event) {
+            if input.key_held(VirtualKeyCode::W) {
+                raycaster.change_direction(raycaster::Direction::Up)
+            }
+
+            if input.key_held(VirtualKeyCode::S) {
+                raycaster.change_direction(raycaster::Direction::Down)
+            }
+
+            if input.key_held(VirtualKeyCode::A) {
+                raycaster.change_direction(raycaster::Direction::Left)
+            }
+
+            if input.key_held(VirtualKeyCode::D) {
+                raycaster.change_direction(raycaster::Direction::Right)
+            }
+
+            if input.key_pressed(VirtualKeyCode::M) {
+                map_toggle = !map_toggle;
+            }
         }
 
         gw.window.request_redraw();

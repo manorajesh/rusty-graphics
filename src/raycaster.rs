@@ -1,4 +1,4 @@
-use crate::{HEIGHT, WIDTH, line, set_pixel};
+use crate::{HEIGHT, WIDTH, line, set_pixel, vector::Vector};
 
 pub const MAPHEIGHT: usize = 240;
 pub const MAPWIDTH: usize = 320;
@@ -11,106 +11,13 @@ pub struct RayCaster {
 
 struct Ray {
     dir: Vector<f64>,
-    distance: f64,
     hit: bool,
 }
 
 struct Player {
     pub pos: Vector<f64>,
     pub dir: Vector<f64>,
-    pub vel: f64,
-}
-
-#[derive(Clone, Copy, PartialEq, PartialOrd)]
-struct Vector<T> {
-    x: T,
-    y: T,
-}
-
-impl<T> Vector<T> {
-    pub fn new(x: T, y: T) -> Self {
-        Self { x, y }
-    }
-
-    pub fn rotate(&self, angle: f64) -> Vector<T>
-    where
-        T: Into<f64> + From<f64> + Copy,
-    {
-        let x = self.x.into();
-        let y = self.y.into();
-
-        let new_x = (x * angle.cos() - y * angle.sin()).into();
-        let new_y = (x * angle.sin() + y * angle.cos()).into();
-
-        Vector::new(new_x, new_y)
-    }
-
-    pub fn angle(&self) -> f64
-    where
-        T: Into<f64> + From<f64> + Copy,
-    {
-        let x = self.x.into();
-        let y = self.y.into();
-        y.atan2(x)
-    }
-}
-
-impl<T> std::ops::Add for Vector<T>
-where
-    T: std::ops::Add<Output = T>,
-{
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        Self {
-            x: self.x + rhs.x,
-            y: self.y + rhs.y,
-        }
-    }
-}
-
-impl<T> std::ops::AddAssign for Vector<T>
-where
-    T: std::ops::AddAssign,
-{
-    fn add_assign(&mut self, rhs: Self) {
-        self.x += rhs.x;
-        self.y += rhs.y;
-    }
-}
-
-impl<T> std::ops::MulAssign for Vector<T>
-where
-    T: std::ops::MulAssign,
-{
-    fn mul_assign(&mut self, rhs: Self) {
-        self.x *= rhs.x;
-        self.y *= rhs.y;
-    }
-}
-
-impl<T> std::ops::SubAssign for Vector<T>
-where
-    T: std::ops::SubAssign,
-{
-    fn sub_assign(&mut self, rhs: Self) {
-        self.x -= rhs.x;
-        self.y -= rhs.y;
-    }
-}
-
-impl<T> std::ops::Mul<T> for Vector<T>
-where
-    T: std::ops::Mul<Output = T> + Copy,
-{
-    type Output = Self;
-
-    fn mul(self, rhs: T) -> Self::Output {
-        Self {
-            x: self.x * rhs,
-            y: self.y * rhs,
-        }
-    }
+    pub vel: Vector<f64>,
 }
 
 pub enum Direction {
@@ -127,7 +34,7 @@ impl RayCaster {
             player: Player {
                 pos: Vector { x: 22.0, y: 12.0 },
                 dir: Vector { x: -1.0, y: 0.0 },
-                vel: 0.0,
+                vel: Vector { x: 0., y: 0. }
             },
 
             map: generate_map(),
@@ -197,7 +104,6 @@ impl RayCaster {
             let angle = (self.fov/NUMRAYS * i as f64 - half_fov) * 1f64.to_radians();
             let mut ray = Ray {
                 dir: self.player.dir.rotate(angle),
-                distance: 0.,
                 hit: false,
             };
 
@@ -272,11 +178,11 @@ impl RayCaster {
                 (map_pos.y as f64 - self.player.pos.y + (1. - step.y) / 2.) / ray.dir.y
             };
 
-            println!("angle: {:.02}, distance: {}", (ray.dir.angle() - self.player.dir.angle()).cos(), distance);
+            // println!("angle: {:.02}, distance: {}", (ray.dir.angle() - self.player.dir.angle()).cos(), distance);
 
-            // let correct_distance = ray.distance * (self.player.dir.angle() - ray.dir.angle()).cos();
+            let correct_distance = distance * (self.player.dir.angle() - ray.dir.angle()).cos();
 
-            let mut height = (HEIGHT as f64 / distance).abs() * 15.;
+            let mut height = (HEIGHT as f64 / correct_distance).abs() * 15.;
             if height > HEIGHT as f64 {
                 height = HEIGHT as f64;
             }
@@ -289,52 +195,53 @@ impl RayCaster {
     }
 
     pub fn update_player(&mut self) {
-        let old_pos = self.player.pos;
-        if self.player.pos.x > 0. && self.player.pos.x < WIDTH as f64 {
-            self.player.pos.x += self.player.dir.x * self.player.vel;
-        }
-
-        if self.map[self.player.pos.y as usize][self.player.pos.x as usize] != 0 {
-            self.player.pos = old_pos;
-        }
-
-        let old_pos = self.player.pos;
-        if self.player.pos.y > 0. && self.player.pos.y < HEIGHT as f64 {
-            self.player.pos.y += self.player.dir.y * self.player.vel;
-        }
-
-        if self.map[self.player.pos.y as usize][self.player.pos.x as usize] != 0 {
-            self.player.pos = old_pos;
+        let new_pos = Vector::new(
+            self.player.pos.x + self.player.dir.x * self.player.vel.x,
+            self.player.pos.y + self.player.dir.y * self.player.vel.y
+        );
+        if self.is_valid_position(&new_pos) {
+            self.player.pos = new_pos;
         }
         self.player.vel *= 0.9;
     }
+    
+    fn is_valid_position(&self, pos: &Vector<f64>) -> bool {
+        if pos.x < 0. || pos.x >= WIDTH as f64-1. || pos.y < 0. || pos.y >= HEIGHT as f64-1. {
+            return false;
+        }
+        if self.map[pos.y as usize][pos.x as usize] != 0 {
+            return false;
+        }
+        true
+    }    
 
     pub fn change_direction(&mut self, dir: Direction) {
-        const MOVESPEED: f64 = 5.;
-        const ROTATESPEED: f64 = 0.01;
-        let old_pos = self.player.pos;
+        const ACCELERATION: f64 = 0.5;
+        const ROTATESPEED: f64 = 0.001;
+    
         match dir {
             Direction::Down => {
-                self.player.vel -= 0.5;
+                self.player.vel -= ACCELERATION;
             },
             Direction::Up => {
-                self.player.vel += 0.5;
+                self.player.vel += ACCELERATION;
             },
             Direction::Left => {
-                self.player.pos -= self.player.dir.rotate(90.) * MOVESPEED;
+                let perp_left = self.player.dir.rotate(90.);
+                self.player.vel.x -= perp_left.x * ACCELERATION;
+                self.player.vel.y -= perp_left.y * ACCELERATION;
             },
             Direction::Right => {
-                self.player.pos += self.player.dir.rotate(90.) * MOVESPEED;
+                let perp_right = self.player.dir.rotate(-90.);
+                self.player.vel.x += perp_right.x * ACCELERATION;
+                self.player.vel.y += perp_right.y * ACCELERATION;
             },
             Direction::Mouse(dx, _) => {
                 self.player.dir = self.player.dir.rotate(dx as f64 * ROTATESPEED);
             }
         }
-
-        if self.map[self.player.pos.y as usize][self.player.pos.x as usize] != 0 {
-            self.player.pos = old_pos;
-        }
     }
+    
     
 }
 

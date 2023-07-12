@@ -2,7 +2,7 @@ use pixels::{Error, Pixels, SurfaceTexture};
 use winit::{
     dpi::LogicalSize,
     event_loop::EventLoop,
-    window::{Window, WindowBuilder},
+    window::{Window, WindowBuilder, CursorGrabMode},
 };
 
 use crate::{HEIGHT, WIDTH};
@@ -21,6 +21,11 @@ impl GameWindow {
             .with_inner_size(size)
             .build(event_loop)
             .unwrap();
+
+        window.set_cursor_grab(CursorGrabMode::Confined)
+            .or_else(|_e| window.set_cursor_grab(CursorGrabMode::Locked))
+            .unwrap();
+        window.set_cursor_visible(false);
 
         let texture_size = ((WIDTH as f64*scale_factor) as u32, (HEIGHT as f64*scale_factor) as u32);  // Replace with the desired texture size
         let surface_texture = SurfaceTexture::new(texture_size.0, texture_size.1, &window);
