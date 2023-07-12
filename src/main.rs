@@ -1,14 +1,13 @@
 use pixels::Error;
 use winit::{
-    event::{Event, VirtualKeyCode, WindowEvent, DeviceEvent},
+    event::{DeviceEvent, Event, VirtualKeyCode, WindowEvent},
     event_loop::EventLoop,
 };
 use winit_input_helper::WinitInputHelper;
 
-
 mod raycaster;
-mod window;
 mod vector;
+mod window;
 
 pub const WIDTH: u32 = 1280;
 pub const HEIGHT: u32 = 720;
@@ -55,34 +54,11 @@ fn main() -> Result<(), Error> {
                 gw.resize((size.width, size.height));
             }
 
-            // Event::WindowEvent {
-            //     event: WindowEvent::KeyboardInput { input, .. },
-            //     ..
-            // } => {
-            //     // println!("Keyboard input detected");
-            //     match input.virtual_keycode {
-            //         Some(VirtualKeyCode::W) if input.state == ElementState::Pressed => {
-            //             raycaster.change_direction(raycaster::Direction::Up)
-            //         }
-            //         Some(VirtualKeyCode::S) if input.state == ElementState::Pressed => {
-            //             raycaster.change_direction(raycaster::Direction::Down)
-            //         }
-            //         Some(VirtualKeyCode::A) if input.state == ElementState::Pressed => {
-            //             raycaster.change_direction(raycaster::Direction::Left)
-            //         }
-            //         Some(VirtualKeyCode::D) if input.state == ElementState::Pressed => {
-            //             raycaster.change_direction(raycaster::Direction::Right)
-            //         }
-            //         Some(VirtualKeyCode::M) if input.state == ElementState::Pressed => {
-            //             map_toggle = !map_toggle;
-            //         }
-            //         _ => {}
-            //     }
-            // }
-
-            Event::DeviceEvent { event: DeviceEvent::MouseMotion { delta }, .. } => {
-                raycaster.change_direction(raycaster::Direction::Mouse(delta.0 as f64, delta.1 as f64))
-            }
+            Event::DeviceEvent {
+                event: DeviceEvent::MouseMotion { delta },
+                ..
+            } => raycaster
+                .change_direction(raycaster::Direction::Mouse(delta.0, delta.1)),
 
             _ => {}
         }
@@ -119,7 +95,15 @@ fn verline(frame: &mut [u8], x: usize, y1: usize, y2: usize, rgba: &[u8; 4], sca
     }
 }
 
-pub fn line(frame: &mut [u8], x1: isize, y1: isize, x2: isize, y2: isize, color: [u8; 4], scale: usize) {
+pub fn line(
+    frame: &mut [u8],
+    x1: isize,
+    y1: isize,
+    x2: isize,
+    y2: isize,
+    color: [u8; 4],
+    scale: usize,
+) {
     if x1 == x2 {
         verline(frame, x1 as usize, y1 as usize, y2 as usize, &color, scale);
         return;
@@ -135,7 +119,9 @@ pub fn line(frame: &mut [u8], x1: isize, y1: isize, x2: isize, y2: isize, color:
     loop {
         set_pixel(frame, x as usize, y as usize, color, scale);
 
-        if x == x2 * scale as isize && y == y2 * scale as isize { break }
+        if x == x2 * scale as isize && y == y2 * scale as isize {
+            break;
+        }
 
         let e2 = 2 * err;
 
@@ -151,10 +137,20 @@ pub fn line(frame: &mut [u8], x1: isize, y1: isize, x2: isize, y2: isize, color:
     }
 }
 
-fn filled_rectangle(frame: &mut [u8], x1: usize, y1: usize, x2: usize, y2: usize, color: [u8; 4], scale: usize) {
-    for x in (x1*scale)..=(x2*scale) {
-        for y in (y1*scale)..=(y2*scale) {
-            if x >= WIDTH as usize || y >= HEIGHT as usize { continue }
+fn filled_rectangle(
+    frame: &mut [u8],
+    x1: usize,
+    y1: usize,
+    x2: usize,
+    y2: usize,
+    color: [u8; 4],
+    scale: usize,
+) {
+    for x in (x1 * scale)..=(x2 * scale) {
+        for y in (y1 * scale)..=(y2 * scale) {
+            if x >= WIDTH as usize || y >= HEIGHT as usize {
+                continue;
+            }
             set_pixel(frame, x, y, color, scale);
         }
     }
@@ -166,9 +162,9 @@ pub fn set_pixel(frame: &mut [u8], x: usize, y: usize, color: [u8; 4], scale: us
             let xi = x * scale + i;
             let yj = y * scale + j;
             if xi < WIDTH as usize && yj < HEIGHT as usize {
-                let index = ((yj * WIDTH as usize + xi) * 4) as usize;
+                let index = (yj * WIDTH as usize + xi) * 4;
                 if index + 4 <= frame.len() {
-                    frame[index..index+4].copy_from_slice(&color);
+                    frame[index..index + 4].copy_from_slice(&color);
                 }
             }
         }

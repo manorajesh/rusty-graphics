@@ -1,4 +1,4 @@
-use crate::{HEIGHT, WIDTH, line, set_pixel, vector::Vector};
+use crate::{line, set_pixel, vector::Vector, HEIGHT, WIDTH};
 
 pub const MAPHEIGHT: usize = 240;
 pub const MAPWIDTH: usize = 320;
@@ -34,7 +34,7 @@ impl RayCaster {
             player: Player {
                 pos: Vector { x: 22.0, y: 12.0 },
                 dir: Vector { x: -1.0, y: 0.0 },
-                vel: Vector { x: 0., y: 0. }
+                vel: Vector { x: 0., y: 0. },
             },
 
             map: generate_map(),
@@ -65,13 +65,11 @@ impl RayCaster {
             //     [1,4,4,4,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
             //     [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
             //   ],
-
-              fov,
+            fov,
         }
     }
 
     pub fn draw(&self, frame: &mut [u8], map_toggle: bool) -> Result<(), String> {
-
         if map_toggle {
             // map
             for y in 0..self.map.len() {
@@ -92,23 +90,40 @@ impl RayCaster {
                 }
             }
 
-            set_pixel(frame, self.player.pos.x as usize, self.player.pos.y as usize, [25, 0, 255, 255], 1);
-            line(frame, self.player.pos.x as isize, self.player.pos.y as isize, (self.player.pos.x + self.player.dir.x * 10.) as isize, (self.player.pos.y + self.player.dir.y * 10.) as isize, [255, 0, 0, 255], 1);
+            set_pixel(
+                frame,
+                self.player.pos.x as usize,
+                self.player.pos.y as usize,
+                [25, 0, 255, 255],
+                1,
+            );
+            line(
+                frame,
+                self.player.pos.x as isize,
+                self.player.pos.y as isize,
+                (self.player.pos.x + self.player.dir.x * 10.) as isize,
+                (self.player.pos.y + self.player.dir.y * 10.) as isize,
+                [255, 0, 0, 255],
+                1,
+            );
             return Ok(());
         }
-        
+
         // raycasting
         let half_fov: f64 = self.fov / 2.;
         const NUMRAYS: f64 = WIDTH as f64;
         for i in 0..NUMRAYS as usize {
-            let angle = (self.fov/NUMRAYS * i as f64 - half_fov) * 1f64.to_radians();
+            let angle = (self.fov / NUMRAYS * i as f64 - half_fov) * 1f64.to_radians();
             let mut ray = Ray {
                 dir: self.player.dir.rotate(angle),
                 hit: false,
             };
 
             // map_pos is the current map cell we are in
-            let mut map_pos: Vector<i32> = Vector::new(self.player.pos.x.floor() as i32, self.player.pos.y.floor() as i32);
+            let mut map_pos: Vector<i32> = Vector::new(
+                self.player.pos.x.floor() as i32,
+                self.player.pos.y.floor() as i32,
+            );
 
             // delta of ray to next map cell
             let delta_dist = Vector {
@@ -131,7 +146,7 @@ impl RayCaster {
                     // top right edge of map cell
                     (map_pos.x as f64 + 1. - self.player.pos.x) * delta_dist.x
                 },
-                
+
                 y: if ray.dir.y < 0. {
                     // top left edge of map cell
                     (self.player.pos.y - map_pos.y as f64) * delta_dist.y
@@ -178,8 +193,6 @@ impl RayCaster {
                 (map_pos.y as f64 - self.player.pos.y + (1. - step.y) / 2.) / ray.dir.y
             };
 
-            // println!("angle: {:.02}, distance: {}", (ray.dir.angle() - self.player.dir.angle()).cos(), distance);
-
             let correct_distance = distance * (self.player.dir.angle() - ray.dir.angle()).cos();
 
             let mut height = (HEIGHT as f64 / correct_distance).abs() * 15.;
@@ -189,7 +202,15 @@ impl RayCaster {
 
             let column_start = HEIGHT as isize / 2 - height as isize / 2;
             let column_end = HEIGHT as isize / 2 + height as isize / 2;
-            line(frame, i as isize, column_start, i as isize, column_end, color, 1);
+            line(
+                frame,
+                i as isize,
+                column_start,
+                i as isize,
+                column_end,
+                color,
+                1,
+            );
         }
         Ok(())
     }
@@ -197,52 +218,50 @@ impl RayCaster {
     pub fn update_player(&mut self) {
         let new_pos = Vector::new(
             self.player.pos.x + self.player.dir.x * self.player.vel.x,
-            self.player.pos.y + self.player.dir.y * self.player.vel.y
+            self.player.pos.y + self.player.dir.y * self.player.vel.y,
         );
         if self.is_valid_position(&new_pos) {
             self.player.pos = new_pos;
         }
         self.player.vel *= 0.9;
     }
-    
+
     fn is_valid_position(&self, pos: &Vector<f64>) -> bool {
-        if pos.x < 0. || pos.x >= WIDTH as f64-1. || pos.y < 0. || pos.y >= HEIGHT as f64-1. {
+        if pos.x < 0. || pos.x >= WIDTH as f64 - 1. || pos.y < 0. || pos.y >= HEIGHT as f64 - 1. {
             return false;
         }
         if self.map[pos.y as usize][pos.x as usize] != 0 {
             return false;
         }
         true
-    }    
+    }
 
     pub fn change_direction(&mut self, dir: Direction) {
         const ACCELERATION: f64 = 0.5;
         const ROTATESPEED: f64 = 0.001;
-    
+
         match dir {
             Direction::Down => {
                 self.player.vel -= ACCELERATION;
-            },
+            }
             Direction::Up => {
                 self.player.vel += ACCELERATION;
-            },
+            }
             Direction::Left => {
                 let perp_left = self.player.dir.rotate(90.);
                 self.player.vel.x -= perp_left.x * ACCELERATION;
                 self.player.vel.y -= perp_left.y * ACCELERATION;
-            },
+            }
             Direction::Right => {
                 let perp_right = self.player.dir.rotate(-90.);
                 self.player.vel.x += perp_right.x * ACCELERATION;
                 self.player.vel.y += perp_right.y * ACCELERATION;
-            },
+            }
             Direction::Mouse(dx, _) => {
-                self.player.dir = self.player.dir.rotate(dx as f64 * ROTATESPEED);
+                self.player.dir = self.player.dir.rotate(dx * ROTATESPEED);
             }
         }
     }
-    
-    
 }
 
 trait DivAssign {
