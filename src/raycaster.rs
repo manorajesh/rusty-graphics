@@ -216,24 +216,35 @@ impl RayCaster {
     }
 
     pub fn update_player(&mut self) {
-        let new_pos = Vector::new(
+        let new_pos_x = Vector::new(
             self.player.pos.x + self.player.dir.x * self.player.vel.x,
+            self.player.pos.y,
+        );
+        if self.is_valid_position(&new_pos_x) {
+            self.player.pos = new_pos_x;
+        }
+
+        let new_pos_y = Vector::new(
+            self.player.pos.x,
             self.player.pos.y + self.player.dir.y * self.player.vel.y,
         );
-        if self.is_valid_position(&new_pos) {
-            self.player.pos = new_pos;
+        if self.is_valid_position(&new_pos_y) {
+            self.player.pos = new_pos_y;
         }
+
         self.player.vel *= 0.9;
     }
 
     fn is_valid_position(&self, pos: &Vector<f64>) -> bool {
-        if pos.x < 0. || pos.x >= WIDTH as f64 - 1. || pos.y < 0. || pos.y >= HEIGHT as f64 - 1. {
-            return false;
+        if let Some(row) = self.map.get(pos.y as usize) {
+            if let Some(cell) = row.get(pos.x as usize) {
+                if *cell == 0 {
+                    return true;
+                }
+            }
         }
-        if self.map[pos.y as usize][pos.x as usize] != 0 {
-            return false;
-        }
-        true
+
+        false
     }
 
     pub fn change_direction(&mut self, dir: Direction) {
