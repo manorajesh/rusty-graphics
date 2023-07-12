@@ -1,3 +1,5 @@
+use crate::raycaster::Direction;
+
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub struct Vector<T> {
     pub x: T,
@@ -29,6 +31,17 @@ impl<T> Vector<T> {
         let x = self.x.into();
         let y = self.y.into();
         y.atan2(x)
+    }
+
+    pub fn orthogonal(&self, dir: Direction) -> Self
+    where
+        T: std::ops::Neg<Output = T> + Copy,
+    {
+        match dir {
+            Direction::Right => Vector::new(self.y, -self.x),
+            Direction::Left => Vector::new(-self.y, self.x),
+            _ => panic!("Invalid direction"),
+        }
     }
 }
 

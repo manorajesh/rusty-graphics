@@ -31,7 +31,7 @@ impl GameWindow {
         let texture_size = (
             (WIDTH as f64 * scale_factor) as u32,
             (HEIGHT as f64 * scale_factor) as u32,
-        ); // Replace with the desired texture size
+        );
         let surface_texture = SurfaceTexture::new(texture_size.0, texture_size.1, &window);
         let pixels = Pixels::new(texture_size.0, texture_size.1, surface_texture)?;
 

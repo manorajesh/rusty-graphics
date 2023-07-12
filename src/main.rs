@@ -9,9 +9,9 @@ mod raycaster;
 mod vector;
 mod window;
 
-pub const WIDTH: u32 = 320;
-pub const HEIGHT: u32 = 240;
-pub const SCALEFACTOR: f64 = 2.;
+pub const WIDTH: u32 = 1000;
+pub const HEIGHT: u32 = 1000;
+pub const SCALEFACTOR: f64 = 1.;
 
 fn main() -> Result<(), Error> {
     let mut input = WinitInputHelper::new();

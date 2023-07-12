@@ -106,6 +106,26 @@ impl RayCaster {
                 [255, 0, 0, 255],
                 1,
             );
+
+            // orthogonal line
+            line(
+                frame,
+                self.player.pos.x as isize,
+                self.player.pos.y as isize,
+                (self.player.pos.x + self.player.dir.orthogonal(Direction::Left).x * 10.) as isize,
+                (self.player.pos.y + self.player.dir.orthogonal(Direction::Left).y * 10.) as isize,
+                [0, 255, 0, 255],
+                1,
+            );
+            line(
+                frame,
+                self.player.pos.x as isize,
+                self.player.pos.y as isize,
+                (self.player.pos.x + self.player.dir.orthogonal(Direction::Right).x * 10.) as isize,
+                (self.player.pos.y + self.player.dir.orthogonal(Direction::Right).y * 10.) as isize,
+                [0, 0, 255, 255],
+                1,
+            );
             return Ok(());
         }
 
@@ -259,14 +279,12 @@ impl RayCaster {
                 self.player.vel += ACCELERATION;
             }
             Direction::Left => {
-                let perp_left = self.player.dir.rotate(90.);
-                self.player.vel.x -= perp_left.x * ACCELERATION;
-                self.player.vel.y -= perp_left.y * ACCELERATION;
+                let vel_left = self.player.dir.orthogonal(Direction::Left);
+                self.player.vel += vel_left;
             }
             Direction::Right => {
-                let perp_right = self.player.dir.rotate(-90.);
-                self.player.vel.x += perp_right.x * ACCELERATION;
-                self.player.vel.y += perp_right.y * ACCELERATION;
+                let vel_right = self.player.dir.orthogonal(Direction::Right);
+                self.player.vel += vel_right;
             }
             Direction::Mouse(dx, _) => {
                 self.player.dir = self.player.dir.rotate(dx * ROTATESPEED);
