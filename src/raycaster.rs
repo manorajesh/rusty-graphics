@@ -1,11 +1,11 @@
 use crate::{line, set_pixel, vector::Vector, HEIGHT, WIDTH};
 
-pub const MAPHEIGHT: usize = 240;
-pub const MAPWIDTH: usize = 320;
+pub const MAPHEIGHT: usize = 1000;
+pub const MAPWIDTH: usize = 1000;
 
 pub struct RayCaster {
     player: Player,
-    map: [[u8; MAPWIDTH]; MAPHEIGHT],
+    map: Vec<Vec<u8>>,
     fov: f64,
 }
 
@@ -237,7 +237,7 @@ impl RayCaster {
 
     pub fn update_player(&mut self) {
         let new_pos_x = Vector::new(
-            self.player.pos.x + self.player.dir.x * self.player.vel.x,
+            self.player.pos.x + self.player.vel.x,
             self.player.pos.y,
         );
         if self.is_valid_position(&new_pos_x) {
@@ -246,7 +246,7 @@ impl RayCaster {
 
         let new_pos_y = Vector::new(
             self.player.pos.x,
-            self.player.pos.y + self.player.dir.y * self.player.vel.y,
+            self.player.pos.y + self.player.vel.y,
         );
         if self.is_valid_position(&new_pos_y) {
             self.player.pos = new_pos_y;
@@ -268,23 +268,27 @@ impl RayCaster {
     }
 
     pub fn change_direction(&mut self, dir: Direction) {
-        const ACCELERATION: f64 = 0.5;
+        const ACCELERATION: f64 = 0.1;
         const ROTATESPEED: f64 = 0.001;
-
+    
         match dir {
             Direction::Down => {
-                self.player.vel -= ACCELERATION;
+                self.player.vel.x -= self.player.dir.x * ACCELERATION;
+                self.player.vel.y -= self.player.dir.y * ACCELERATION;
             }
             Direction::Up => {
-                self.player.vel += ACCELERATION;
+                self.player.vel.x += self.player.dir.x * ACCELERATION;
+                self.player.vel.y += self.player.dir.y * ACCELERATION;
             }
             Direction::Left => {
-                let vel_left = self.player.dir.orthogonal(Direction::Left);
-                self.player.vel += vel_left;
+                let ortho = self.player.dir.orthogonal(Direction::Left);
+                self.player.vel.x -= ortho.x * ACCELERATION;
+                self.player.vel.y -= ortho.y * ACCELERATION;
             }
             Direction::Right => {
-                let vel_right = self.player.dir.orthogonal(Direction::Right);
-                self.player.vel += vel_right;
+                let ortho = self.player.dir.orthogonal(Direction::Right);
+                self.player.vel.x -= ortho.x * ACCELERATION;
+                self.player.vel.y -= ortho.y * ACCELERATION;
             }
             Direction::Mouse(dx, _) => {
                 self.player.dir = self.player.dir.rotate(dx * ROTATESPEED);
@@ -306,58 +310,72 @@ impl DivAssign for [u8; 4] {
     }
 }
 
-fn generate_map() -> [[u8; 320]; 240] {
-    let mut map = [[0u8; 320]; 240];
+fn generate_map() -> Vec<Vec<u8>> {
+    let mut map = vec![vec![0u8; 1000]; 1000];
 
     // Fill the border with 1s
-    for i in 0..320 {
+    for i in 0..1000 {
         map[0][i] = 1;
-        map[239][i] = 1;
+        map[999][i] = 1;
     }
-    for i in 0..240 {
+    for i in 0..1000 {
         map[i][0] = 1;
-        map[i][319] = 1;
+        map[i][999] = 1;
     }
 
     // Add a large room of 2s at the center
-    for i in 80..160 {
-        for j in 120..200 {
+    for i in 250..500 {
+        for j in 375..625 {
             map[i][j] = 2;
         }
     }
 
     // Add a corridor of 3s leading from the room to the right wall
-    for i in 120..130 {
-        for j in 200..320 {
+    for i in 375..416 {
+        for j in 625..1000 {
             map[i][j] = 3;
         }
     }
 
     // Add a small room of 4s at the top left
-    for i in 20..50 {
-        for j in 20..50 {
+    for i in 62..156 {
+        for j in 62..156 {
             map[i][j] = 4;
         }
     }
 
     // Add a corridor of 5s leading from the small room to the large room
-    for i in 45..80 {
-        for j in 20..30 {
+    for i in 140..250 {
+        for j in 62..94 {
             map[i][j] = 5;
         }
     }
 
     // Add a small room of 4s at the bottom right
-    for i in 190..220 {
-        for j in 270..300 {
+    for i in 593..688 {
+        for j in 844..938 {
             map[i][j] = 4;
         }
     }
 
     // Add a corridor of 5s leading from the small room to the bottom border
-    for i in 220..240 {
-        for j in 270..280 {
+    for i in 688..750 {
+        for j in 844..875 {
             map[i][j] = 5;
+        }
+    }
+
+    // Add a new room of 6s at the top right
+    for i in 62..156 {
+        for j in 844..938 {
+            map[i][j] = 6;
+        }
+    }
+
+    // Add a new corridor of 7s leading from the new room to the top border
+    for i in 0..62 {
+        for j in 844..875 {
+            map[i][j] = 7;
         }
     }
 
