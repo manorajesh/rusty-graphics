@@ -3,7 +3,7 @@ use image::GenericImageView;
 
 pub struct RayCaster {
     player: Player,
-    map: Vec<Vec<u8>>,
+    map: Vec<Vec<[u8; 4]>>,
     fov: f64,
 }
 
@@ -72,18 +72,9 @@ impl RayCaster {
             // map
             for y in 0..self.map.len() {
                 for x in 0..self.map[y].len() {
-                    let color = match self.map[y][x] {
-                        1 => Some([255, 0, 0, 255]),
-                        2 => Some([0, 255, 0, 255]),
-                        3 => Some([0, 0, 255, 255]),
-                        4 => Some([255, 255, 255, 255]),
-                        5 => Some([255, 255, 0, 255]),
-                        _ => None,
-                    };
+                    let color = self.map[y][x];
 
-                    if let Some(color) = color {
-                        set_pixel(frame, x, y, color, 1);
-                    }
+                    set_pixel(frame, x, y, color, 1);
                     // filled_rectangle(frame, x, y, x+1, y+2, color, PIXELSIZE)
                 }
             }
@@ -187,19 +178,12 @@ impl RayCaster {
                     side = 1;
                 }
 
-                if self.map[map_pos.y as usize][map_pos.x as usize] > 0 {
+                if self.map[map_pos.y as usize][map_pos.x as usize] > [0, 0, 0, 0] {
                     ray.hit = true;
                 }
             }
 
-            let mut color = match self.map[map_pos.y as usize][map_pos.x as usize] {
-                1 => [255, 0, 0, 255],
-                2 => [0, 255, 0, 255],
-                3 => [0, 0, 255, 255],
-                4 => [255, 255, 0, 255],
-                5 => [255, 0, 255, 255],
-                _ => [255, 255, 255, 255],
-            };
+            let mut color = self.map[map_pos.y as usize][map_pos.x as usize];
 
             if side == 1 {
                 color.div_assign(2)
@@ -236,13 +220,13 @@ impl RayCaster {
             self.player.pos = new_pos_y;
         }
 
-        self.player.vel *= 0.9;
+        self.player.vel *= 0.8;
     }
 
     fn is_valid_position(&self, pos: &Vector<f64>) -> bool {
         if let Some(row) = self.map.get(pos.y as usize) {
             if let Some(cell) = row.get(pos.x as usize) {
-                if *cell == 0 {
+                if *cell == [0, 0, 0, 0] {
                     return true;
                 }
             }
@@ -366,16 +350,17 @@ impl DivAssign for [u8; 4] {
 //     map
 // }
 
-fn generate_map() -> Vec<Vec<[u8; 3]>> {
+fn generate_map() -> Vec<Vec<[u8; 4]>> {
     let img = image::open("assets/map.png").unwrap();
+    let img = img.to_rgba8();
     let (width, height) = img.dimensions();
 
-    let mut buffer: Vec<Vec<[u8; 3]>> = vec![vec![[0, 0, 0]; width as usize]; height as usize];
+    let mut buffer: Vec<Vec<[u8; 4]>> = vec![vec![[0, 0, 0, 0]; width as usize]; height as usize];
 
     for y in 0..height {
         for x in 0..width {
             let pixel = img.get_pixel(x, y);
-            buffer[y as usize][x as usize] = [pixel[0], pixel[1], pixel[2]];
+            buffer[y as usize][x as usize] = [pixel[0], pixel[1], pixel[2], pixel[3]];
         }
     }
 
