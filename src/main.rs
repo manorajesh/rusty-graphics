@@ -62,8 +62,7 @@ fn main() -> Result<(), Error> {
             Event::DeviceEvent {
                 event: DeviceEvent::MouseMotion { delta },
                 ..
-            } => raycaster
-                .change_direction(raycaster::Direction::Mouse(delta.0, delta.1)),
+            } => raycaster.change_direction(raycaster::Direction::Mouse(delta.0, delta.1)),
 
             _ => {}
         }
