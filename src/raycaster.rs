@@ -1,4 +1,4 @@
-use crate::{line, set_pixel, vector::Vector, HEIGHT, WIDTH, verline, ACCELERATION};
+use crate::{line, set_pixel, vector::Vector, verline, ACCELERATION, HEIGHT, WIDTH};
 
 pub struct RayCaster {
     player: Player,
@@ -219,31 +219,18 @@ impl RayCaster {
 
             let column_start = HEIGHT as usize / 2 - height as usize / 2;
             let column_end = HEIGHT as usize / 2 + height as usize / 2;
-            verline(
-                frame,
-                i,
-                column_start,
-                column_end,
-                color,
-                1,
-            );
+            verline(frame, i, column_start, column_end, color, 1);
         }
         Ok(())
     }
 
     pub fn update_player(&mut self) {
-        let new_pos_x = Vector::new(
-            self.player.pos.x + self.player.vel.x,
-            self.player.pos.y,
-        );
+        let new_pos_x = Vector::new(self.player.pos.x + self.player.vel.x, self.player.pos.y);
         if self.is_valid_position(&new_pos_x) {
             self.player.pos = new_pos_x;
         }
 
-        let new_pos_y = Vector::new(
-            self.player.pos.x,
-            self.player.pos.y + self.player.vel.y,
-        );
+        let new_pos_y = Vector::new(self.player.pos.x, self.player.pos.y + self.player.vel.y);
         if self.is_valid_position(&new_pos_y) {
             self.player.pos = new_pos_y;
         }
@@ -266,7 +253,7 @@ impl RayCaster {
     pub fn change_direction(&mut self, dir: Direction) {
         const ROTATESPEED: f64 = 0.001;
         let acceleration = unsafe { ACCELERATION };
-    
+
         match dir {
             Direction::Down => {
                 self.player.vel.x -= self.player.dir.x * acceleration;
