@@ -13,6 +13,8 @@ pub const WIDTH: u32 = 1000;
 pub const HEIGHT: u32 = 1000;
 pub const SCALEFACTOR: f64 = 1.;
 
+pub static mut ACCELERATION: f64 = 0.1;
+
 fn main() -> Result<(), Error> {
     let mut input = WinitInputHelper::new();
 
@@ -24,6 +26,7 @@ fn main() -> Result<(), Error> {
     event_loop.run(move |event, _, control_flow| {
         match event {
             Event::RedrawRequested(_) => {
+                let now = std::time::Instant::now();
                 // println!("Redraw requested");
                 let frame = gw.pixels.frame_mut();
 
@@ -36,6 +39,8 @@ fn main() -> Result<(), Error> {
 
                 raycaster.draw(frame, map_toggle).unwrap();
                 gw.pixels.render().unwrap();
+                let elapsed = now.elapsed().as_millis();
+                println!("FPS: {}", 1000 / elapsed)
             }
 
             Event::WindowEvent {
@@ -64,6 +69,16 @@ fn main() -> Result<(), Error> {
         }
 
         if input.update(&event) {
+            if input.held_shift() {
+                unsafe {
+                    ACCELERATION = 0.5;
+                }
+            } else {
+                unsafe {
+                    ACCELERATION = 0.1;
+                }
+            }
+
             if input.key_held(VirtualKeyCode::W) {
                 raycaster.change_direction(raycaster::Direction::Up)
             }
@@ -89,9 +104,9 @@ fn main() -> Result<(), Error> {
     });
 }
 
-fn verline(frame: &mut [u8], x: usize, y1: usize, y2: usize, rgba: &[u8; 4], scale: usize) {
+fn verline(frame: &mut [u8], x: usize, y1: usize, y2: usize, rgba: [u8; 4], scale: usize) {
     for y in (y1 * scale)..=(y2 * scale) {
-        set_pixel(frame, x, y, *rgba, scale);
+        set_pixel(frame, x, y, rgba, scale);
     }
 }
 
@@ -105,7 +120,7 @@ pub fn line(
     scale: usize,
 ) {
     if x1 == x2 {
-        verline(frame, x1 as usize, y1 as usize, y2 as usize, &color, scale);
+        verline(frame, x1 as usize, y1 as usize, y2 as usize, color, scale);
         return;
     }
     let dx = isize::abs(x2 - x1) * scale as isize;

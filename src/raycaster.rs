@@ -1,7 +1,4 @@
-use crate::{line, set_pixel, vector::Vector, HEIGHT, WIDTH};
-
-pub const MAPHEIGHT: usize = 1000;
-pub const MAPWIDTH: usize = 1000;
+use crate::{line, set_pixel, vector::Vector, HEIGHT, WIDTH, verline, ACCELERATION};
 
 pub struct RayCaster {
     player: Player,
@@ -220,13 +217,12 @@ impl RayCaster {
                 height = HEIGHT as f64;
             }
 
-            let column_start = HEIGHT as isize / 2 - height as isize / 2;
-            let column_end = HEIGHT as isize / 2 + height as isize / 2;
-            line(
+            let column_start = HEIGHT as usize / 2 - height as usize / 2;
+            let column_end = HEIGHT as usize / 2 + height as usize / 2;
+            verline(
                 frame,
-                i as isize,
+                i,
                 column_start,
-                i as isize,
                 column_end,
                 color,
                 1,
@@ -268,27 +264,27 @@ impl RayCaster {
     }
 
     pub fn change_direction(&mut self, dir: Direction) {
-        const ACCELERATION: f64 = 0.1;
         const ROTATESPEED: f64 = 0.001;
+        let acceleration = unsafe { ACCELERATION };
     
         match dir {
             Direction::Down => {
-                self.player.vel.x -= self.player.dir.x * ACCELERATION;
-                self.player.vel.y -= self.player.dir.y * ACCELERATION;
+                self.player.vel.x -= self.player.dir.x * acceleration;
+                self.player.vel.y -= self.player.dir.y * acceleration;
             }
             Direction::Up => {
-                self.player.vel.x += self.player.dir.x * ACCELERATION;
-                self.player.vel.y += self.player.dir.y * ACCELERATION;
+                self.player.vel.x += self.player.dir.x * acceleration;
+                self.player.vel.y += self.player.dir.y * acceleration;
             }
             Direction::Left => {
                 let ortho = self.player.dir.orthogonal(Direction::Left);
-                self.player.vel.x -= ortho.x * ACCELERATION;
-                self.player.vel.y -= ortho.y * ACCELERATION;
+                self.player.vel.x -= ortho.x * acceleration;
+                self.player.vel.y -= ortho.y * acceleration;
             }
             Direction::Right => {
                 let ortho = self.player.dir.orthogonal(Direction::Right);
-                self.player.vel.x -= ortho.x * ACCELERATION;
-                self.player.vel.y -= ortho.y * ACCELERATION;
+                self.player.vel.x -= ortho.x * acceleration;
+                self.player.vel.y -= ortho.y * acceleration;
             }
             Direction::Mouse(dx, _) => {
                 self.player.dir = self.player.dir.rotate(dx * ROTATESPEED);
