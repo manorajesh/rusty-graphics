@@ -9,8 +9,8 @@ mod raycaster;
 mod vector;
 mod window;
 
-pub const WIDTH: u32 = 1000;
-pub const HEIGHT: u32 = 1000;
+pub const WIDTH: u32 = 3840;
+pub const HEIGHT: u32 = 2160;
 pub const SCALEFACTOR: f64 = 1.;
 
 pub static mut ACCELERATION: f64 = 0.1;
@@ -62,8 +62,7 @@ fn main() -> Result<(), Error> {
             Event::DeviceEvent {
                 event: DeviceEvent::MouseMotion { delta },
                 ..
-            } => raycaster
-                .change_direction(raycaster::Direction::Mouse(delta.0, delta.1)),
+            } => raycaster.change_direction(raycaster::Direction::Mouse(delta.0, delta.1)),
 
             _ => {}
         }

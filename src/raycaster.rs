@@ -1,4 +1,7 @@
-use crate::{line, set_pixel, vector::Vector, HEIGHT, WIDTH, verline, ACCELERATION};
+use std::sync::{Arc, Mutex};
+
+use crate::{line, set_pixel, vector::Vector, verline, ACCELERATION, HEIGHT, WIDTH};
+use rayon::prelude::*;
 
 pub struct RayCaster {
     player: Player,
@@ -127,9 +130,10 @@ impl RayCaster {
         }
 
         // raycasting
+        let frame = Arc::new(Mutex::new(frame));
         let half_fov: f64 = self.fov / 2.;
         const NUMRAYS: f64 = WIDTH as f64;
-        for i in 0..NUMRAYS as usize {
+        (0..NUMRAYS as usize).into_par_iter().for_each(|i| {
             let angle = (self.fov / NUMRAYS * i as f64 - half_fov) * 1f64.to_radians();
             let mut ray = Ray {
                 dir: self.player.dir.rotate(angle),
@@ -219,31 +223,18 @@ impl RayCaster {
 
             let column_start = HEIGHT as usize / 2 - height as usize / 2;
             let column_end = HEIGHT as usize / 2 + height as usize / 2;
-            verline(
-                frame,
-                i,
-                column_start,
-                column_end,
-                color,
-                1,
-            );
-        }
+            verline(&mut frame.lock().unwrap(), i, column_start, column_end, color, 1);
+        });
         Ok(())
     }
 
     pub fn update_player(&mut self) {
-        let new_pos_x = Vector::new(
-            self.player.pos.x + self.player.vel.x,
-            self.player.pos.y,
-        );
+        let new_pos_x = Vector::new(self.player.pos.x + self.player.vel.x, self.player.pos.y);
         if self.is_valid_position(&new_pos_x) {
             self.player.pos = new_pos_x;
         }
 
-        let new_pos_y = Vector::new(
-            self.player.pos.x,
-            self.player.pos.y + self.player.vel.y,
-        );
+        let new_pos_y = Vector::new(self.player.pos.x, self.player.pos.y + self.player.vel.y);
         if self.is_valid_position(&new_pos_y) {
             self.player.pos = new_pos_y;
         }
@@ -266,7 +257,7 @@ impl RayCaster {
     pub fn change_direction(&mut self, dir: Direction) {
         const ROTATESPEED: f64 = 0.001;
         let acceleration = unsafe { ACCELERATION };
-    
+
         match dir {
             Direction::Down => {
                 self.player.vel.x -= self.player.dir.x * acceleration;
