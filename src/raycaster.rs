@@ -1,4 +1,5 @@
 use crate::{line, set_pixel, vector::Vector, verline, ACCELERATION, HEIGHT, WIDTH};
+use image::GenericImageView;
 
 pub struct RayCaster {
     player: Player,
@@ -293,74 +294,90 @@ impl DivAssign for [u8; 4] {
     }
 }
 
-fn generate_map() -> Vec<Vec<u8>> {
-    let mut map = vec![vec![0u8; 1000]; 1000];
+// fn generate_map() -> Vec<Vec<u8>> {
+//     let mut map = vec![vec![0u8; 1000]; 1000];
 
-    // Fill the border with 1s
-    for i in 0..1000 {
-        map[0][i] = 1;
-        map[999][i] = 1;
-    }
-    for i in 0..1000 {
-        map[i][0] = 1;
-        map[i][999] = 1;
-    }
+//     // Fill the border with 1s
+//     for i in 0..1000 {
+//         map[0][i] = 1;
+//         map[999][i] = 1;
+//     }
+//     for i in 0..1000 {
+//         map[i][0] = 1;
+//         map[i][999] = 1;
+//     }
 
-    // Add a large room of 2s at the center
-    for i in 250..500 {
-        for j in 375..625 {
-            map[i][j] = 2;
+//     // Add a large room of 2s at the center
+//     for i in 250..500 {
+//         for j in 375..625 {
+//             map[i][j] = 2;
+//         }
+//     }
+
+//     // Add a corridor of 3s leading from the room to the right wall
+//     for i in 375..416 {
+//         for j in 625..1000 {
+//             map[i][j] = 3;
+//         }
+//     }
+
+//     // Add a small room of 4s at the top left
+//     for i in 62..156 {
+//         for j in 62..156 {
+//             map[i][j] = 4;
+//         }
+//     }
+
+//     // Add a corridor of 5s leading from the small room to the large room
+//     for i in 140..250 {
+//         for j in 62..94 {
+//             map[i][j] = 5;
+//         }
+//     }
+
+//     // Add a small room of 4s at the bottom right
+//     for i in 593..688 {
+//         for j in 844..938 {
+//             map[i][j] = 4;
+//         }
+//     }
+
+//     // Add a corridor of 5s leading from the small room to the bottom border
+//     for i in 688..750 {
+//         for j in 844..875 {
+//             map[i][j] = 5;
+//         }
+//     }
+
+//     // Add a new room of 6s at the top right
+//     for i in 62..156 {
+//         for j in 844..938 {
+//             map[i][j] = 6;
+//         }
+//     }
+
+//     // Add a new corridor of 7s leading from the new room to the top border
+//     for i in 0..62 {
+//         for j in 844..875 {
+//             map[i][j] = 7;
+//         }
+//     }
+
+//     map
+// }
+
+fn generate_map() -> Vec<Vec<[u8; 3]>> {
+    let img = image::open("assets/map.png").unwrap();
+    let (width, height) = img.dimensions();
+
+    let mut buffer: Vec<Vec<[u8; 3]>> = vec![vec![[0, 0, 0]; width as usize]; height as usize];
+
+    for y in 0..height {
+        for x in 0..width {
+            let pixel = img.get_pixel(x, y);
+            buffer[y as usize][x as usize] = [pixel[0], pixel[1], pixel[2]];
         }
     }
 
-    // Add a corridor of 3s leading from the room to the right wall
-    for i in 375..416 {
-        for j in 625..1000 {
-            map[i][j] = 3;
-        }
-    }
-
-    // Add a small room of 4s at the top left
-    for i in 62..156 {
-        for j in 62..156 {
-            map[i][j] = 4;
-        }
-    }
-
-    // Add a corridor of 5s leading from the small room to the large room
-    for i in 140..250 {
-        for j in 62..94 {
-            map[i][j] = 5;
-        }
-    }
-
-    // Add a small room of 4s at the bottom right
-    for i in 593..688 {
-        for j in 844..938 {
-            map[i][j] = 4;
-        }
-    }
-
-    // Add a corridor of 5s leading from the small room to the bottom border
-    for i in 688..750 {
-        for j in 844..875 {
-            map[i][j] = 5;
-        }
-    }
-
-    // Add a new room of 6s at the top right
-    for i in 62..156 {
-        for j in 844..938 {
-            map[i][j] = 6;
-        }
-    }
-
-    // Add a new corridor of 7s leading from the new room to the top border
-    for i in 0..62 {
-        for j in 844..875 {
-            map[i][j] = 7;
-        }
-    }
-
-    map
+    buffer
 }
