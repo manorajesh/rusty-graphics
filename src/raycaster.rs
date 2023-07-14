@@ -2,7 +2,7 @@ use crate::{line, set_pixel, vector::Vector, verline, ACCELERATION, HEIGHT, WIDT
 
 pub struct RayCaster {
     player: Player,
-    map: Vec<Vec<u8>>,
+    map: Vec<Vec<MapCell>>,
     fov: f64,
 }
 
@@ -23,6 +23,37 @@ pub enum Direction {
     Left,
     Right,
     Mouse(f64, f64),
+}
+
+#[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
+struct MapCell {
+    pub color: [u8; 4],
+    pub solid: MapCellType,
+    pub height: f64,
+}
+
+#[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
+enum MapCellType {
+    Empty,
+    Wall,
+}
+
+impl MapCell {
+    pub fn new(color: [u8; 4], solid: MapCellType, height: f64) -> Self {
+        Self {
+            color,
+            solid,
+            height,
+        }
+    }
+
+    pub fn empty() -> Self {
+        Self {
+            color: [0, 0, 0, 0],
+            solid: MapCellType::Empty,
+            height: 0.0,
+        }
+    }
 }
 
 impl RayCaster {
@@ -71,18 +102,9 @@ impl RayCaster {
             // map
             for y in 0..self.map.len() {
                 for x in 0..self.map[y].len() {
-                    let color = match self.map[y][x] {
-                        1 => Some([255, 0, 0, 255]),
-                        2 => Some([0, 255, 0, 255]),
-                        3 => Some([0, 0, 255, 255]),
-                        4 => Some([255, 255, 255, 255]),
-                        5 => Some([255, 255, 0, 255]),
-                        _ => None,
-                    };
+                    let cell = self.map[y][x];
 
-                    if let Some(color) = color {
-                        set_pixel(frame, x, y, color, 1);
-                    }
+                    set_pixel(frame, x, y, cell.color, 1);
                     // filled_rectangle(frame, x, y, x+1, y+2, color, PIXELSIZE)
                 }
             }
@@ -186,22 +208,15 @@ impl RayCaster {
                     side = 1;
                 }
 
-                if self.map[map_pos.y as usize][map_pos.x as usize] > 0 {
+                if self.map[map_pos.y as usize][map_pos.x as usize].solid != MapCellType::Empty {
                     ray.hit = true;
                 }
             }
 
-            let mut color = match self.map[map_pos.y as usize][map_pos.x as usize] {
-                1 => [255, 0, 0, 255],
-                2 => [0, 255, 0, 255],
-                3 => [0, 0, 255, 255],
-                4 => [255, 255, 0, 255],
-                5 => [255, 0, 255, 255],
-                _ => [255, 255, 255, 255],
-            };
+            let mut cell = self.map[map_pos.y as usize][map_pos.x as usize];
 
             if side == 1 {
-                color.div_assign(2)
+                cell.color.div_assign(2)
             }
 
             let distance: f64 = if side == 0 {
@@ -219,7 +234,7 @@ impl RayCaster {
 
             let column_start = HEIGHT as usize / 2 - height as usize / 2;
             let column_end = HEIGHT as usize / 2 + height as usize / 2;
-            verline(frame, i, column_start, column_end, color, 1);
+            verline(frame, i, column_start, column_end, cell.color, 1);
         }
         Ok(())
     }
@@ -235,13 +250,13 @@ impl RayCaster {
             self.player.pos = new_pos_y;
         }
 
-        self.player.vel *= 0.9;
+        self.player.vel *= 0.8;
     }
 
     fn is_valid_position(&self, pos: &Vector<f64>) -> bool {
         if let Some(row) = self.map.get(pos.y as usize) {
             if let Some(cell) = row.get(pos.x as usize) {
-                if *cell == 0 {
+                if cell.solid == MapCellType::Empty {
                     return true;
                 }
             }
@@ -293,74 +308,24 @@ impl DivAssign for [u8; 4] {
     }
 }
 
-fn generate_map() -> Vec<Vec<u8>> {
-    let mut map = vec![vec![0u8; 1000]; 1000];
+fn generate_map() -> Vec<Vec<MapCell>> {
+    let img = image::open("assets/map.png").unwrap();
+    let img = img.to_rgba8();
+    let (width, height) = img.dimensions();
 
-    // Fill the border with 1s
-    for i in 0..1000 {
-        map[0][i] = 1;
-        map[999][i] = 1;
-    }
-    for i in 0..1000 {
-        map[i][0] = 1;
-        map[i][999] = 1;
-    }
+    let mut buffer: Vec<Vec<MapCell>> = vec![vec![MapCell::empty(); width as usize]; height as usize];
 
-    // Add a large room of 2s at the center
-    for i in 250..500 {
-        for j in 375..625 {
-            map[i][j] = 2;
+    for y in 0..height {
+        for x in 0..width {
+            let pixel = img.get_pixel(x, y).0;
+            let solid = if pixel == [0, 0, 0, 0] {
+                MapCellType::Empty
+            } else {
+                MapCellType::Wall
+            };
+            buffer[y as usize][x as usize] = MapCell::new(pixel, solid, 0.);
         }
     }
 
-    // Add a corridor of 3s leading from the room to the right wall
-    for i in 375..416 {
-        for j in 625..1000 {
-            map[i][j] = 3;
-        }
-    }
-
-    // Add a small room of 4s at the top left
-    for i in 62..156 {
-        for j in 62..156 {
-            map[i][j] = 4;
-        }
-    }
-
-    // Add a corridor of 5s leading from the small room to the large room
-    for i in 140..250 {
-        for j in 62..94 {
-            map[i][j] = 5;
-        }
-    }
-
-    // Add a small room of 4s at the bottom right
-    for i in 593..688 {
-        for j in 844..938 {
-            map[i][j] = 4;
-        }
-    }
-
-    // Add a corridor of 5s leading from the small room to the bottom border
-    for i in 688..750 {
-        for j in 844..875 {
-            map[i][j] = 5;
-        }
-    }
-
-    // Add a new room of 6s at the top right
-    for i in 62..156 {
-        for j in 844..938 {
-            map[i][j] = 6;
-        }
-    }
-
-    // Add a new corridor of 7s leading from the new room to the top border
-    for i in 0..62 {
-        for j in 844..875 {
-            map[i][j] = 7;
-        }
-    }
-
-    map
+    buffer
 }
