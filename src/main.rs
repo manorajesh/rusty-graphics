@@ -32,7 +32,7 @@ fn main() -> Result<(), Error> {
 
                 // Clear the frame
                 for pixel in frame.chunks_exact_mut(4) {
-                    pixel.copy_from_slice(&[255, 255, 255, 100]); // Set every pixel to black
+                    pixel.copy_from_slice(&[0, 0, 0, 0]); // Set every pixel to black
                 }
 
                 raycaster.update_player();
