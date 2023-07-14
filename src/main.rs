@@ -9,9 +9,9 @@ mod raycaster;
 mod vector;
 mod window;
 
-pub const WIDTH: u32 = 1000;
-pub const HEIGHT: u32 = 1000;
-pub const SCALEFACTOR: f64 = 1.;
+pub const WIDTH: u32 = 3840;
+pub const HEIGHT: u32 = 2160;
+pub const SCALEFACTOR: u32 = 2;
 
 pub static mut ACCELERATION: f64 = 0.1;
 
@@ -19,7 +19,7 @@ fn main() -> Result<(), Error> {
     let mut input = WinitInputHelper::new();
 
     let event_loop = EventLoop::new();
-    let mut gw = window::GameWindow::new("2D Raycaster", &event_loop, SCALEFACTOR)?;
+    let mut gw = window::GameWindow::new("2D Raycaster", &event_loop)?;
     let mut raycaster = raycaster::RayCaster::new(60.);
     let mut map_toggle = false;
 
@@ -55,7 +55,7 @@ fn main() -> Result<(), Error> {
                 event: WindowEvent::Resized(size),
                 ..
             } => {
-                // println!("Window resized to {:?}", size);
+                println!("Window resized to {:?}", size);
                 gw.resize((size.width, size.height));
             }
 
