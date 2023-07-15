@@ -227,6 +227,9 @@ impl RayCaster {
 
             let correct_distance = distance * (self.player.dir.angle() - ray.dir.angle()).cos();
 
+            // fog
+            cell.color.mul_assign(1. / (1. + correct_distance * correct_distance * 0.0001));
+
             let mut height = (HEIGHT as f64 / correct_distance).abs() * 15.;
             if height > HEIGHT as f64 {
                 height = HEIGHT as f64;
@@ -292,6 +295,19 @@ impl RayCaster {
                 self.player.dir = self.player.dir.rotate(dx * ROTATESPEED);
             }
         }
+    }
+}
+
+trait MulAssign {
+    fn mul_assign(&mut self, rhs: f64);
+}
+
+impl MulAssign for [u8; 4] {
+    fn mul_assign(&mut self, rhs: f64) {
+        self[0] = (self[0] as f64 * rhs) as u8;
+        self[1] = (self[1] as f64 * rhs) as u8;
+        self[2] = (self[2] as f64 * rhs) as u8;
+        self[3] = (self[3] as f64 * rhs) as u8;
     }
 }
 
