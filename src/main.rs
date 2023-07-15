@@ -9,8 +9,8 @@ mod raycaster;
 mod vector;
 mod window;
 
-pub const WIDTH: u32 = 1920;
-pub const HEIGHT: u32 = 1080;
+pub const WIDTH: u32 = 1000;
+pub const HEIGHT: u32 = 1000;
 pub const SCALEFACTOR: u32 = 2;
 
 pub static mut ACCELERATION: f64 = 0.1;
@@ -21,7 +21,7 @@ fn main() -> Result<(), Error> {
     let event_loop = EventLoop::new();
     let mut gw = window::GameWindow::new("2D Raycaster", &event_loop)?;
     let mut raycaster = raycaster::RayCaster::new(60.);
-    let mut map_toggle = false;
+    let mut map_toggle = true;
 
     event_loop.run(move |event, _, control_flow| {
         match event {

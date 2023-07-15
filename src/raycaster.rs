@@ -1,5 +1,6 @@
-use crate::{line, set_pixel, vector::Vector, verline, ACCELERATION, HEIGHT, WIDTH, fill_vec};
+use crate::{line, set_pixel, vector::Vector, verline, ACCELERATION, HEIGHT, WIDTH};
 use rayon::prelude::*;
+use noise::{NoiseFn, Perlin, Seedable};
 
 pub struct RayCaster {
     player: Player,
@@ -150,11 +151,9 @@ impl RayCaster {
         }
 
         // raycasting
-        let mut cols: Vec<(usize, usize, [u8; 4])> = vec![(0, 0, [0, 0, 0, 255]); WIDTH as usize];
-
         let half_fov: f64 = self.fov / 2.;
         const NUMRAYS: f64 = WIDTH as f64;
-        cols.par_iter_mut().enumerate().for_each(|(i, col)| {
+        for i in 0..NUMRAYS as usize {
             let angle = (self.fov / NUMRAYS * i as f64 - half_fov) * 1f64.to_radians();
             let mut ray = Ray {
                 dir: self.player.dir.rotate(angle),
@@ -240,19 +239,8 @@ impl RayCaster {
 
             let column_start = HEIGHT as usize / 2 - height as usize / 2;
             let column_end = HEIGHT as usize / 2 + height as usize / 2;
-            // fill_vec(buffer, cell.color, column_start, column_end);
-            *col = (column_start, column_end, cell.color);
-        });
-
-        // println!("{:?}", cols);
-        // panic!("");
-
-        // draw
-        cols.iter().enumerate().for_each(|(i, col)| {
-            let (column_start, column_end, color) = col;
-            verline(frame, i, *column_start, *column_end, *color);
-        });
-
+            verline(frame, i, column_start, column_end, cell.color);
+        }
         Ok(())
     }
 
@@ -338,24 +326,57 @@ impl DivAssign for [u8; 4] {
     }
 }
 
+// fn generate_map() -> Vec<Vec<MapCell>> {
+//     let img = image::open("assets/map.png").unwrap();
+//     let img = img.to_rgba8();
+//     let (width, height) = img.dimensions();
+
+//     let mut buffer: Vec<Vec<MapCell>> = vec![vec![MapCell::empty(); width as usize]; height as usize];
+
+//     for y in 0..height {
+//         for x in 0..width {
+//             let pixel = img.get_pixel(x, y).0;
+//             let solid = if pixel == [0, 0, 0, 0] {
+//                 MapCellType::Empty
+//             } else {
+//                 MapCellType::Wall
+//             };
+//             buffer[y as usize][x as usize] = MapCell::new(pixel, solid, 0.);
+//         }
+//     }
+
+//     buffer
+// }
+
 fn generate_map() -> Vec<Vec<MapCell>> {
-    let img = image::open("assets/map.png").unwrap();
-    let img = img.to_rgba8();
-    let (width, height) = img.dimensions();
+    const MAP_WIDTH: u32 = 1000;
+    const MAP_HEIGHT: u32 = 1000;
 
-    let mut buffer: Vec<Vec<MapCell>> = vec![vec![MapCell::empty(); width as usize]; height as usize];
-
-    for y in 0..height {
-        for x in 0..width {
-            let pixel = img.get_pixel(x, y).0;
-            let solid = if pixel == [0, 0, 0, 0] {
-                MapCellType::Empty
-            } else {
+    let perlin = Perlin::new(1);
+    let mut buffer: Vec<Vec<MapCell>> = vec![vec![MapCell::empty(); MAP_WIDTH as usize]; MAP_HEIGHT as usize];
+    for y in 0..MAP_HEIGHT {
+        for x in 0..MAP_WIDTH {
+            let noise = perlin.get([x as f64 / 10., y as f64 / 10.]);
+            let color: [u8; 4];
+            let solid = if noise > 0.7 {
+                color = [255, 0, 0, 255];
                 MapCellType::Wall
+            } else {
+                color = [0, 0, 0, 0];
+                MapCellType::Empty
             };
-            buffer[y as usize][x as usize] = MapCell::new(pixel, solid, 0.);
+            buffer[y as usize][x as usize] = MapCell::new(color, solid, 0.);
         }
     }
 
+    // borders
+    for y in 0..MAP_HEIGHT {
+        buffer[y as usize][0] = MapCell::new([255, 255, 255, 255], MapCellType::Wall, 0.);
+        buffer[y as usize][MAP_WIDTH as usize - 1] = MapCell::new([255, 255, 255, 255], MapCellType::Wall, 0.);
+    }
+    for x in 0..MAP_WIDTH {
+        buffer[0][x as usize] = MapCell::new([255, 255, 255, 255], MapCellType::Wall, 0.);
+        buffer[MAP_HEIGHT as usize - 1][x as usize] = MapCell::new([255, 255, 255, 255], MapCellType::Wall, 0.);
+    }
     buffer
 }
