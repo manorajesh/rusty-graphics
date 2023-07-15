@@ -9,8 +9,8 @@ mod raycaster;
 mod vector;
 mod window;
 
-pub const WIDTH: u32 = 3840;
-pub const HEIGHT: u32 = 2160;
+pub const WIDTH: u32 = 1920;
+pub const HEIGHT: u32 = 1080;
 pub const SCALEFACTOR: u32 = 2;
 
 pub static mut ACCELERATION: f64 = 0.1;
@@ -104,9 +104,12 @@ fn main() -> Result<(), Error> {
     });
 }
 
-fn verline(frame: &mut [u8], x: usize, y1: usize, y2: usize, rgba: [u8; 4], scale: usize) {
-    for y in (y1 * scale)..=(y2 * scale) {
-        set_pixel(frame, x, y, rgba, scale);
+fn verline(frame: &mut [u8], x: usize, y1: usize, y2: usize, rgba: [u8; 4]) {
+    for y in y1..=y2 {
+        let index = (y * WIDTH as usize + x) * 4;
+        if index + 4 <= frame.len() {
+            frame[index..index + 4].copy_from_slice(&rgba);
+        }
     }
 }
 
@@ -120,7 +123,7 @@ pub fn line(
     scale: usize,
 ) {
     if x1 == x2 {
-        verline(frame, x1 as usize, y1 as usize, y2 as usize, color, scale);
+        verline(frame, x1 as usize, y1 as usize, y2 as usize, color);
         return;
     }
     let dx = isize::abs(x2 - x1) * scale as isize;

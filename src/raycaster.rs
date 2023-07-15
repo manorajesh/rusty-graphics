@@ -150,11 +150,11 @@ impl RayCaster {
         }
 
         // raycasting
-        let mut buffers = vec![vec![[0u8,0,0,0]; HEIGHT as usize]; WIDTH as usize];
+        let mut cols: Vec<(usize, usize, [u8; 4])> = vec![(0, 0, [0, 0, 0, 255]); WIDTH as usize];
 
         let half_fov: f64 = self.fov / 2.;
         const NUMRAYS: f64 = WIDTH as f64;
-        buffers.par_iter_mut().enumerate().for_each(|(i, buffer)| {
+        cols.par_iter_mut().enumerate().for_each(|(i, col)| {
             let angle = (self.fov / NUMRAYS * i as f64 - half_fov) * 1f64.to_radians();
             let mut ray = Ray {
                 dir: self.player.dir.rotate(angle),
@@ -240,14 +240,18 @@ impl RayCaster {
 
             let column_start = HEIGHT as usize / 2 - height as usize / 2;
             let column_end = HEIGHT as usize / 2 + height as usize / 2;
-            fill_vec(buffer, cell.color, column_start, column_end);
+            // fill_vec(buffer, cell.color, column_start, column_end);
+            *col = (column_start, column_end, cell.color);
         });
 
-        let buffers = buffers.iter().flatten().collect::<Vec<_>>();
-        let buffers: Vec<u8> = buffers.iter().map(|x| x.to_vec()).flatten().collect();
-        for (i, pixel) in buffers.iter().enumerate() {
-            frame[i] = *pixel;
-        }
+        // println!("{:?}", cols);
+        // panic!("");
+
+        // draw
+        cols.iter().enumerate().for_each(|(i, col)| {
+            let (column_start, column_end, color) = col;
+            verline(frame, i, *column_start, *column_end, *color);
+        });
 
         Ok(())
     }
