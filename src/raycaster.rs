@@ -1,4 +1,5 @@
-use crate::{line, set_pixel, vector::Vector, verline, ACCELERATION, HEIGHT, WIDTH};
+use crate::{line, set_pixel, vector::Vector, verline, ACCELERATION, HEIGHT, WIDTH, fill_vec};
+use rayon::prelude::*;
 
 pub struct RayCaster {
     player: Player,
@@ -149,9 +150,11 @@ impl RayCaster {
         }
 
         // raycasting
+        let mut buffers = vec![vec![[0u8,0,0,0]; HEIGHT as usize]; WIDTH as usize];
+
         let half_fov: f64 = self.fov / 2.;
         const NUMRAYS: f64 = WIDTH as f64;
-        for i in 0..NUMRAYS as usize {
+        buffers.par_iter_mut().enumerate().for_each(|(i, buffer)| {
             let angle = (self.fov / NUMRAYS * i as f64 - half_fov) * 1f64.to_radians();
             let mut ray = Ray {
                 dir: self.player.dir.rotate(angle),
@@ -237,8 +240,15 @@ impl RayCaster {
 
             let column_start = HEIGHT as usize / 2 - height as usize / 2;
             let column_end = HEIGHT as usize / 2 + height as usize / 2;
-            verline(frame, i, column_start, column_end, cell.color, 1);
+            fill_vec(buffer, cell.color, column_start, column_end);
+        });
+
+        let buffers = buffers.iter().flatten().collect::<Vec<_>>();
+        let buffers: Vec<u8> = buffers.iter().map(|x| x.to_vec()).flatten().collect();
+        for (i, pixel) in buffers.iter().enumerate() {
+            frame[i] = *pixel;
         }
+
         Ok(())
     }
 

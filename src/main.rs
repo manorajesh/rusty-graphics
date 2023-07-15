@@ -39,8 +39,9 @@ fn main() -> Result<(), Error> {
 
                 raycaster.draw(frame, map_toggle).unwrap();
                 gw.pixels.render().unwrap();
-                let elapsed = now.elapsed().as_millis();
-                println!("FPS: {}", 1000 / elapsed)
+                let elapsed = now.elapsed();
+                let fps = 1. / (elapsed.as_secs_f64());
+                println!("FPS: {:.03}", fps);
             }
 
             Event::WindowEvent {
@@ -182,5 +183,11 @@ pub fn set_pixel(frame: &mut [u8], x: usize, y: usize, color: [u8; 4], scale: us
                 }
             }
         }
+    }
+}
+
+pub fn fill_vec<T: Copy>(vec: &mut Vec<T>, value: T, start: usize, end: usize) {
+    for i in start..end {
+        vec[i] = value;
     }
 }
