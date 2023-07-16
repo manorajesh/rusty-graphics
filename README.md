@@ -1,7 +1,7 @@
 # 3D Graphics Engine
 Basic Graphics Engine built with `wgpu` in Rust
 
-![Demo picture](https://github.com/manorajesh/rusty-graphics/blob/master/images/demo.png)
+![Demo picture](https://github.com/manorajesh/rusty-graphics/blob/wgpu/images/demo.png)
 
 ## Installation
 ```
