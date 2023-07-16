@@ -1,98 +1,20 @@
-use crate::{verline, HEIGHT, WIDTH, line, set_pixel, filled_rectangle};
-
-pub const MAPHEIGHT: usize = 240;
-pub const MAPWIDTH: usize = 320;
-
-pub const PIXELSIZE: usize = 1;
+use crate::{line, set_pixel, vector::Vector, verline, ACCELERATION, HEIGHT, WIDTH};
 
 pub struct RayCaster {
     player: Player,
-    map: [[u8; MAPWIDTH]; MAPHEIGHT],
+    map: Vec<Vec<MapCell>>,
     fov: f64,
 }
 
 struct Ray {
     dir: Vector<f64>,
-    distance: f64,
     hit: bool,
 }
 
 struct Player {
     pub pos: Vector<f64>,
     pub dir: Vector<f64>,
-}
-
-#[derive(Clone, Copy, PartialEq, PartialOrd)]
-struct Vector<T> {
-    x: T,
-    y: T,
-}
-
-impl<T> Vector<T> {
-    pub fn new(x: T, y: T) -> Self {
-        Self { x, y }
-    }
-
-    pub fn rotate(&self, angle: f64) -> Vector<T>
-    where
-        T: Into<f64> + From<f64> + Copy,
-    {
-        let x = self.x.into();
-        let y = self.y.into();
-
-        let new_x = (x * angle.cos() - y * angle.sin()).into();
-        let new_y = (x * angle.sin() + y * angle.cos()).into();
-
-        Vector::new(new_x, new_y)
-    }
-}
-
-impl<T> std::ops::Add for Vector<T>
-where
-    T: std::ops::Add<Output = T>,
-{
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        Self {
-            x: self.x + rhs.x,
-            y: self.y + rhs.y,
-        }
-    }
-}
-
-impl<T> std::ops::AddAssign for Vector<T>
-where
-    T: std::ops::AddAssign,
-{
-    fn add_assign(&mut self, rhs: Self) {
-        self.x += rhs.x;
-        self.y += rhs.y;
-    }
-}
-
-impl<T> std::ops::SubAssign for Vector<T>
-where
-    T: std::ops::SubAssign,
-{
-    fn sub_assign(&mut self, rhs: Self) {
-        self.x -= rhs.x;
-        self.y -= rhs.y;
-    }
-}
-
-impl<T> std::ops::Mul<T> for Vector<T>
-where
-    T: std::ops::Mul<Output = T> + Copy,
-{
-    type Output = Self;
-
-    fn mul(self, rhs: T) -> Self::Output {
-        Self {
-            x: self.x * rhs,
-            y: self.y * rhs,
-        }
-    }
+    pub vel: Vector<f64>,
 }
 
 pub enum Direction {
@@ -103,12 +25,44 @@ pub enum Direction {
     Mouse(f64, f64),
 }
 
+#[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
+struct MapCell {
+    pub color: [u8; 4],
+    pub solid: MapCellType,
+    pub height: f64,
+}
+
+#[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
+enum MapCellType {
+    Empty,
+    Wall,
+}
+
+impl MapCell {
+    pub fn new(color: [u8; 4], solid: MapCellType, height: f64) -> Self {
+        Self {
+            color,
+            solid,
+            height,
+        }
+    }
+
+    pub fn empty() -> Self {
+        Self {
+            color: [0, 0, 0, 0],
+            solid: MapCellType::Empty,
+            height: 0.0,
+        }
+    }
+}
+
 impl RayCaster {
     pub fn new(fov: f64) -> Self {
         Self {
             player: Player {
                 pos: Vector { x: 22.0, y: 12.0 },
                 dir: Vector { x: -1.0, y: 0.0 },
+                vel: Vector { x: 0., y: 0. },
             },
 
             map: generate_map(),
@@ -139,108 +93,222 @@ impl RayCaster {
             //     [1,4,4,4,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
             //     [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
             //   ],
-
-              fov,
+            fov,
         }
     }
 
-    pub fn draw(&self, frame: &mut [u8]) -> Result<(), String> {
-        
+    pub fn draw(&self, frame: &mut [u8], map_toggle: bool) -> Result<(), String> {
+        if map_toggle {
+            // map
+            for y in 0..self.map.len() {
+                for x in 0..self.map[y].len() {
+                    let cell = self.map[y][x];
+
+                    set_pixel(frame, x, y, cell.color, 1);
+                    // filled_rectangle(frame, x, y, x+1, y+2, color, PIXELSIZE)
+                }
+            }
+
+            set_pixel(
+                frame,
+                self.player.pos.x as usize,
+                self.player.pos.y as usize,
+                [25, 0, 255, 255],
+                1,
+            );
+            line(
+                frame,
+                self.player.pos.x as isize,
+                self.player.pos.y as isize,
+                (self.player.pos.x + self.player.dir.x * 10.) as isize,
+                (self.player.pos.y + self.player.dir.y * 10.) as isize,
+                [255, 0, 0, 255],
+                1,
+            );
+
+            // orthogonal line
+            line(
+                frame,
+                self.player.pos.x as isize,
+                self.player.pos.y as isize,
+                (self.player.pos.x + self.player.dir.orthogonal(Direction::Left).x * 10.) as isize,
+                (self.player.pos.y + self.player.dir.orthogonal(Direction::Left).y * 10.) as isize,
+                [0, 255, 0, 255],
+                1,
+            );
+            line(
+                frame,
+                self.player.pos.x as isize,
+                self.player.pos.y as isize,
+                (self.player.pos.x + self.player.dir.orthogonal(Direction::Right).x * 10.) as isize,
+                (self.player.pos.y + self.player.dir.orthogonal(Direction::Right).y * 10.) as isize,
+                [0, 0, 255, 255],
+                1,
+            );
+            return Ok(());
+        }
+
         // raycasting
-        let half_fov = self.fov as i32 / 2;
-        for i in -half_fov..half_fov {
+        let half_fov: f64 = self.fov / 2.;
+        const NUMRAYS: f64 = WIDTH as f64;
+        for i in 0..NUMRAYS as usize {
+            let angle = (self.fov / NUMRAYS * i as f64 - half_fov) * 1f64.to_radians();
             let mut ray = Ray {
-                dir: self.player.dir.rotate(i as f64 * 1f64.to_radians()),
-                distance: 0.,
+                dir: self.player.dir.rotate(angle),
                 hit: false,
             };
 
-            let mut pos = self.player.pos;
+            // map_pos is the current map cell we are in
+            let mut map_pos: Vector<i32> = Vector::new(
+                self.player.pos.x.floor() as i32,
+                self.player.pos.y.floor() as i32,
+            );
+
+            // delta of ray to next map cell
+            let delta_dist = Vector {
+                x: (1.0 / ray.dir.x).abs(),
+                y: (1.0 / ray.dir.y).abs(),
+            };
+
+            // step direction for map_pos
+            let step = Vector {
+                x: if ray.dir.x < 0. { -1. } else { 1. },
+                y: if ray.dir.y < 0. { -1. } else { 1. },
+            };
+
+            // ray distance from side of map cell (helps with determining direction to inc)
+            let mut side_dist: Vector<f64> = Vector {
+                x: if ray.dir.x < 0. {
+                    // top left edge of map cell
+                    (self.player.pos.x - map_pos.x as f64) * delta_dist.x
+                } else {
+                    // top right edge of map cell
+                    (map_pos.x as f64 + 1. - self.player.pos.x) * delta_dist.x
+                },
+
+                y: if ray.dir.y < 0. {
+                    // top left edge of map cell
+                    (self.player.pos.y - map_pos.y as f64) * delta_dist.y
+                } else {
+                    // top right edge of map cell
+                    (map_pos.y as f64 + 1. - self.player.pos.y) * delta_dist.y
+                },
+            };
+
+            // DDA
+            let mut side = 0;
             while !ray.hit {
-                pos += ray.dir;
-                ray.distance += 1.;
-                if self.map[pos.y as usize][pos.x as usize] != 0 {
+                if side_dist.x < side_dist.y {
+                    side_dist.x += delta_dist.x;
+                    map_pos.x += step.x as i32;
+                    side = 0;
+                } else {
+                    side_dist.y += delta_dist.y;
+                    map_pos.y += step.y as i32;
+                    side = 1;
+                }
+
+                if self.map[map_pos.y as usize][map_pos.x as usize].solid != MapCellType::Empty {
                     ray.hit = true;
                 }
             }
 
-            let color = [255, 255, 255, 100];
+            let mut cell = self.map[map_pos.y as usize][map_pos.x as usize];
 
-            // if ray.distance < 5. {
-            //     color = [255, 0, 0, 255];
-            // } else if ray.distance < 10. {
-            //     color = [255, 255, 0, 255];
-            // } else if ray.distance < 15. {
-            //     color = [0, 255, 0, 255];
-            // } else if ray.distance < 20. {
-            //     color = [0, 255, 255, 255];
-            // } else if ray.distance < 25. {
-            //     color = [0, 0, 255, 255];
-            // }
-
-            // let height = (1. / ray.distance) * 100.;
-
-            // filled_rectangle(frame, i, 0, i+1, height as usize, color, PIXELSIZE);
-
-            line(frame, self.player.pos.x as i32, self.player.pos.y as i32, pos.x as i32, pos.y as i32, color, 1);
-        }
-
-        for y in 0..self.map.len() {
-            for x in 0..self.map[y].len() {
-                let color = match self.map[y][x] {
-                    1 => Some([255, 0, 0, 255]),
-                    2 => Some([0, 255, 0, 255]),
-                    3 => Some([0, 0, 255, 255]),
-                    4 => Some([255, 255, 255, 255]),
-                    5 => Some([255, 255, 0, 255]),
-                    _ => None,
-                };
-
-                if let Some(color) = color {
-                    set_pixel(frame, x, y, color, PIXELSIZE);
-                }
-                // filled_rectangle(frame, x, y, x+1, y+2, color, PIXELSIZE)
+            if side == 1 {
+                cell.color.div_assign(2)
             }
-        }
 
-        set_pixel(frame, self.player.pos.x as usize, self.player.pos.y as usize, [255, 255, 255, 255], 1);
+            let distance: f64 = if side == 0 {
+                (map_pos.x as f64 - self.player.pos.x + (1. - step.x) / 2.) / ray.dir.x
+            } else {
+                (map_pos.y as f64 - self.player.pos.y + (1. - step.y) / 2.) / ray.dir.y
+            };
+
+            let correct_distance = distance * (self.player.dir.angle() - ray.dir.angle()).cos();
+
+            // fog
+            cell.color.mul_assign(1. / (1. + correct_distance * correct_distance * 0.0001));
+
+            let mut height = (HEIGHT as f64 / correct_distance).abs() * 15.;
+            if height > HEIGHT as f64 {
+                height = HEIGHT as f64;
+            }
+
+            let column_start = HEIGHT as usize / 2 - height as usize / 2;
+            let column_end = HEIGHT as usize / 2 + height as usize / 2;
+            verline(frame, i, column_start, column_end, cell.color, 1);
+        }
         Ok(())
     }
 
-    pub fn change_direction(&mut self, dir: Direction) {
-        const MOVESPEED: f64 = 1.;
-        match dir {
-            Direction::Down => {
-                self.player.pos += Vector::new(0., 1.) * MOVESPEED;
-            },
-            Direction::Up => {
-                self.player.pos += Vector::new(0., -1.) * MOVESPEED;
-            },
-            Direction::Left => {
-                self.player.pos += Vector::new(-1., 0.) * MOVESPEED;
-            },
-            Direction::Right => {
-                self.player.pos += Vector::new(1., 0.) * MOVESPEED;
-            },
-            Direction::Mouse(dx, dy) => {
-                println!("dx: {}, dy: {}", dx, dy);
-                self.player.pos += Vector::new(dx as f64, dy as f64);
+    pub fn update_player(&mut self) {
+        let new_pos_x = Vector::new(self.player.pos.x + self.player.vel.x, self.player.pos.y);
+        if self.is_valid_position(&new_pos_x) {
+            self.player.pos = new_pos_x;
+        }
 
-                if self.player.pos.x < 0. {
-                    self.player.pos.x = 0.;
-                } else if self.player.pos.x > WIDTH as f64-1. {
-                    self.player.pos.x = WIDTH as f64-1.;
-                }
+        let new_pos_y = Vector::new(self.player.pos.x, self.player.pos.y + self.player.vel.y);
+        if self.is_valid_position(&new_pos_y) {
+            self.player.pos = new_pos_y;
+        }
 
-                if self.player.pos.y < 0. {
-                    self.player.pos.y = 0.;
-                } else if self.player.pos.y > HEIGHT as f64-1. {
-                    self.player.pos.y = HEIGHT as f64-1.;
+        self.player.vel *= 0.8;
+    }
+
+    fn is_valid_position(&self, pos: &Vector<f64>) -> bool {
+        if let Some(row) = self.map.get(pos.y as usize) {
+            if let Some(cell) = row.get(pos.x as usize) {
+                if cell.solid == MapCellType::Empty {
+                    return true;
                 }
             }
         }
+
+        false
     }
-    
+
+    pub fn change_direction(&mut self, dir: Direction) {
+        const ROTATESPEED: f64 = 0.001;
+        let acceleration = unsafe { ACCELERATION };
+
+        match dir {
+            Direction::Down => {
+                self.player.vel.x -= self.player.dir.x * acceleration;
+                self.player.vel.y -= self.player.dir.y * acceleration;
+            }
+            Direction::Up => {
+                self.player.vel.x += self.player.dir.x * acceleration;
+                self.player.vel.y += self.player.dir.y * acceleration;
+            }
+            Direction::Left => {
+                let ortho = self.player.dir.orthogonal(Direction::Left);
+                self.player.vel.x -= ortho.x * acceleration;
+                self.player.vel.y -= ortho.y * acceleration;
+            }
+            Direction::Right => {
+                let ortho = self.player.dir.orthogonal(Direction::Right);
+                self.player.vel.x -= ortho.x * acceleration;
+                self.player.vel.y -= ortho.y * acceleration;
+            }
+            Direction::Mouse(dx, _) => {
+                self.player.dir = self.player.dir.rotate(dx * ROTATESPEED);
+            }
+        }
+    }
+}
+
+trait MulAssign {
+    fn mul_assign(&mut self, rhs: f64);
+}
+
+impl MulAssign for [u8; 4] {
+    fn mul_assign(&mut self, rhs: f64) {
+        self[0] = (self[0] as f64 * rhs) as u8;
+        self[1] = (self[1] as f64 * rhs) as u8;
+        self[2] = (self[2] as f64 * rhs) as u8;
+        self[3] = (self[3] as f64 * rhs) as u8;
+    }
 }
 
 trait DivAssign {
@@ -256,60 +324,24 @@ impl DivAssign for [u8; 4] {
     }
 }
 
-fn generate_map() -> [[u8; 320]; 240] {
-    let mut map = [[0u8; 320]; 240];
+fn generate_map() -> Vec<Vec<MapCell>> {
+    let img = image::open("assets/map.png").unwrap();
+    let img = img.to_rgba8();
+    let (width, height) = img.dimensions();
 
-    // Fill the border with 1s
-    for i in 0..320 {
-        map[0][i] = 1;
-        map[239][i] = 1;
-    }
-    for i in 0..240 {
-        map[i][0] = 1;
-        map[i][319] = 1;
-    }
+    let mut buffer: Vec<Vec<MapCell>> = vec![vec![MapCell::empty(); width as usize]; height as usize];
 
-    // Add a large room of 2s at the center
-    for i in 80..160 {
-        for j in 120..200 {
-            map[i][j] = 2;
+    for y in 0..height {
+        for x in 0..width {
+            let pixel = img.get_pixel(x, y).0;
+            let solid = if pixel == [0, 0, 0, 0] {
+                MapCellType::Empty
+            } else {
+                MapCellType::Wall
+            };
+            buffer[y as usize][x as usize] = MapCell::new(pixel, solid, 0.);
         }
     }
 
-    // Add a corridor of 3s leading from the room to the right wall
-    for i in 120..130 {
-        for j in 200..320 {
-            map[i][j] = 3;
-        }
-    }
-
-    // Add a small room of 4s at the top left
-    for i in 20..50 {
-        for j in 20..50 {
-            map[i][j] = 4;
-        }
-    }
-
-    // Add a corridor of 5s leading from the small room to the large room
-    for i in 45..80 {
-        for j in 20..30 {
-            map[i][j] = 5;
-        }
-    }
-
-    // Add a small room of 4s at the bottom right
-    for i in 190..220 {
-        for j in 270..300 {
-            map[i][j] = 4;
-        }
-    }
-
-    // Add a corridor of 5s leading from the small room to the bottom border
-    for i in 220..240 {
-        for j in 270..280 {
-            map[i][j] = 5;
-        }
-    }
-
-    map
+    buffer
 }
