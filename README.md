@@ -1,7 +1,7 @@
 # twodee raycaster
 A very basic 2D raycaster built with Rust
 
-![Demo picture](https://github.com/manorajesh/twodeeraycaster/blob/master/images/demo.png)
+![Demo picture](https://github.com/manorajesh/twodeeraycaster/blob/ssaa/images/demo.png)
 
 ## Installation
 ```
