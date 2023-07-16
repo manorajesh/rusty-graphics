@@ -1,7 +1,8 @@
 # twodee raycaster
 A very basic 2D raycaster built with Rust
 
-![Demo picture](https://github.com/manorajesh/twodeeraycaster/blob/master/images/demo.png)
+![Demo picture](https://github.com/manorajesh/twodeeraycaster/blob/perlin_map_gen/images/demo1.png)
+![Demo picture](https://github.com/manorajesh/twodeeraycaster/blob/perlin_map_gen/images/demo2.png)
 
 ## Installation
 ```
