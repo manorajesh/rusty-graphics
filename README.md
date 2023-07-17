@@ -1,5 +1,5 @@
-# twodee raycaster
-A very basic 2D raycaster built with Rust
+# threedee raycaster
+A 3D raycaster built with Rust
 
 ![Demo picture](https://github.com/manorajesh/rusty-graphics/blob/threedee/images/demo1.png)
 ![Demo picture](https://github.com/manorajesh/rusty-graphics/blob/threedee/images/demo2.png)
@@ -12,7 +12,10 @@ cargo run
 ```
 
 ## Usage
-Use the arrow keys to traverse the extremely entertaining room and watch the shadows
+Use the arrow keys to traverse the extremely entertaining room. Fog adds that scary touch
+
+## Why
+I wanted to explore graphics programming with this being the stepping stone to `wgpu` and the world of GPU programming. This repo chronicles my long but fulfilling journey with 3D and 2D graphics.
 
 #### Important Code
-The [`draw`](https://github.com/manorajesh/rusty-graphics/blob/cdf31fba1238801ae4804fe2ce98fec9d935985d/src/raycaster.rs#L147-L207) function is responsible for casting the rays and rendering them accordingly.
+The [`draw`](https://github.com/manorajesh/rusty-graphics/blob/9a29953aac353d34af41111cc6ac0443a011c3f8/src/raycaster.rs#L151-L241) function is responsible for casting the rays and rendering them accordingly.
