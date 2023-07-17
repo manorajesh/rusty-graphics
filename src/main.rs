@@ -8,21 +8,20 @@ use winit_input_helper::WinitInputHelper;
 mod raycaster;
 mod vector;
 mod window;
+mod gamestate;
 
 pub const WIDTH: u32 = 1920;
 pub const HEIGHT: u32 = 1080;
 pub const SCALEFACTOR: u32 = 1;
-const DEFAULT_ACCELERATION: f64 = 0.1;
-
-pub static mut ACCELERATION: f64 = DEFAULT_ACCELERATION;
+pub const DEFAULT_ACCELERATION: f64 = 0.1;
 
 fn main() -> Result<(), Error> {
     let mut input = WinitInputHelper::new();
 
     let event_loop = EventLoop::new();
     let mut gw = window::GameWindow::new("Game", &event_loop)?;
-    let mut raycaster = raycaster::RayCaster::new(60.);
-    let mut map_toggle = false;
+    let mut gs = gamestate::GameState::new();
+    let raycaster = raycaster::RayCaster::new(60.);
 
     event_loop.run(move |event, _, control_flow| {
         match event {
@@ -34,9 +33,9 @@ fn main() -> Result<(), Error> {
                 // Clear the frame
                 frame.fill(0);
 
-                raycaster.update_player();
+                gs.update_player(&raycaster.map);
 
-                raycaster.draw(frame, map_toggle).unwrap();
+                raycaster.draw(frame, &gs).unwrap();
                 gw.pixels.render().unwrap();
                 let elapsed = now.elapsed().as_millis();
                 println!("FPS: {}", 1000 / elapsed)
@@ -61,44 +60,38 @@ fn main() -> Result<(), Error> {
             Event::DeviceEvent {
                 event: DeviceEvent::MouseMotion { delta },
                 ..
-            } => raycaster.change_direction(raycaster::Direction::Mouse(delta.0, delta.1)),
+            } => gs.change_direction(gamestate::Direction::Mouse(delta.0, delta.1)),
 
             _ => {}
         }
 
         if input.update(&event) {
             if input.held_shift() {
-                unsafe {
-                    ACCELERATION = 0.5;
-                }
+                gs.acceleration = 0.5;
             } else if input.held_control() {
-                unsafe {
-                    ACCELERATION = 0.01;
-                }
+                gs.acceleration = 0.01;
             } else {
-                unsafe {
-                    ACCELERATION = DEFAULT_ACCELERATION;
-                }
+                gs.acceleration = DEFAULT_ACCELERATION;
             }
 
             if input.key_held(VirtualKeyCode::W) {
-                raycaster.change_direction(raycaster::Direction::Up)
+                gs.change_direction(gamestate::Direction::Up)
             }
 
             if input.key_held(VirtualKeyCode::S) {
-                raycaster.change_direction(raycaster::Direction::Down)
+                gs.change_direction(gamestate::Direction::Down)
             }
 
             if input.key_held(VirtualKeyCode::A) {
-                raycaster.change_direction(raycaster::Direction::Left)
+                gs.change_direction(gamestate::Direction::Left)
             }
 
             if input.key_held(VirtualKeyCode::D) {
-                raycaster.change_direction(raycaster::Direction::Right)
+                gs.change_direction(gamestate::Direction::Right)
             }
 
             if input.key_pressed(VirtualKeyCode::M) {
-                map_toggle = !map_toggle;
+                gs.map_toggle = !gs.map_toggle;
             }
         }
 

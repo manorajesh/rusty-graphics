@@ -1,6 +1,6 @@
-use crate::raycaster::Direction;
+use crate::gamestate::Direction;
 
-#[derive(Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, PartialEq, PartialOrd, Default)]
 pub struct Vector<T> {
     pub x: T,
     pub y: T,

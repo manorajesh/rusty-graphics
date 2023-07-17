@@ -1,8 +1,7 @@
-use crate::{line, set_pixel, vector::Vector, verline, ACCELERATION, HEIGHT, WIDTH};
+use crate::{line, set_pixel, vector::Vector, verline, HEIGHT, WIDTH, gamestate::GameState};
 
 pub struct RayCaster {
-    player: Player,
-    map: Vec<Vec<MapCell>>,
+    pub map: Vec<Vec<MapCell>>,
     fov: f64,
 }
 
@@ -11,30 +10,15 @@ struct Ray {
     hit: bool,
 }
 
-struct Player {
-    pub pos: Vector<f64>,
-    pub dir: Vector<f64>,
-    pub vel: Vector<f64>,
-    pub pitch: f64, // -1.0 to 1.0
-}
-
-pub enum Direction {
-    Up,
-    Down,
-    Left,
-    Right,
-    Mouse(f64, f64),
-}
-
 #[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
-struct MapCell {
+pub struct MapCell {
     pub color: [u8; 4],
     pub solid: MapCellType,
     pub height: f64,
 }
 
 #[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
-enum MapCellType {
+pub enum MapCellType {
     Empty,
     Wall,
 }
@@ -60,13 +44,6 @@ impl MapCell {
 impl RayCaster {
     pub fn new(fov: f64) -> Self {
         Self {
-            player: Player {
-                pos: Vector { x: 22.0, y: 12.0 },
-                dir: Vector { x: -1.0, y: 0.0 },
-                vel: Vector { x: 0., y: 0. },
-                pitch: 0.5,
-            },
-
             map: generate_map(),
 
             // map: [
@@ -99,16 +76,16 @@ impl RayCaster {
         }
     }
 
-    pub fn draw(&self, frame: &mut [u8], map_toggle: bool) -> Result<(), String> {
-        if map_toggle {
+    pub fn draw(&self, frame: &mut [u8], gs: &GameState) -> Result<(), String> {
+        if gs.map_toggle {
             // map
             for y in 0..self.map.len() {
                 for x in 0..self.map[y].len() {
-                    let dist = distance_squared(Vector::new(x as f64, y as f64), self.player.pos);
+                    let dist = distance_squared(Vector::new(x as f64, y as f64), gs.player.pos);
                     if dist > self.fov * self.fov {
                         continue;
                     }
-                    
+
                     let cell = self.map[y][x];
 
                     // cell.color gets darker farther away from the player
@@ -126,17 +103,17 @@ impl RayCaster {
 
             set_pixel(
                 frame,
-                self.player.pos.x as usize,
-                self.player.pos.y as usize,
+                gs.player.pos.x as usize,
+                gs.player.pos.y as usize,
                 [25, 0, 255, 255],
                 1,
             );
             line(
                 frame,
-                self.player.pos.x as isize,
-                self.player.pos.y as isize,
-                (self.player.pos.x + self.player.dir.x * 10.) as isize,
-                (self.player.pos.y + self.player.dir.y * 10.) as isize,
+                gs.player.pos.x as isize,
+                gs.player.pos.y as isize,
+                (gs.player.pos.x + gs.player.dir.x * 10.) as isize,
+                (gs.player.pos.y + gs.player.dir.y * 10.) as isize,
                 [255, 0, 0, 255],
                 1,
             );
@@ -169,14 +146,14 @@ impl RayCaster {
         for i in 0..NUMRAYS as usize {
             let angle = (self.fov / NUMRAYS * i as f64 - half_fov) * 1f64.to_radians();
             let mut ray = Ray {
-                dir: self.player.dir.rotate(angle),
+                dir: gs.player.dir.rotate(angle),
                 hit: false,
             };
 
             // map_pos is the current map cell we are in
             let mut map_pos: Vector<i32> = Vector::new(
-                self.player.pos.x.floor() as i32,
-                self.player.pos.y.floor() as i32,
+                gs.player.pos.x.floor() as i32,
+                gs.player.pos.y.floor() as i32,
             );
 
             // delta of ray to next map cell
@@ -195,18 +172,18 @@ impl RayCaster {
             let mut side_dist: Vector<f64> = Vector {
                 x: if ray.dir.x < 0. {
                     // top left edge of map cell
-                    (self.player.pos.x - map_pos.x as f64) * delta_dist.x
+                    (gs.player.pos.x - map_pos.x as f64) * delta_dist.x
                 } else {
                     // top right edge of map cell
-                    (map_pos.x as f64 + 1. - self.player.pos.x) * delta_dist.x
+                    (map_pos.x as f64 + 1. - gs.player.pos.x) * delta_dist.x
                 },
 
                 y: if ray.dir.y < 0. {
                     // top left edge of map cell
-                    (self.player.pos.y - map_pos.y as f64) * delta_dist.y
+                    (gs.player.pos.y - map_pos.y as f64) * delta_dist.y
                 } else {
                     // top right edge of map cell
-                    (map_pos.y as f64 + 1. - self.player.pos.y) * delta_dist.y
+                    (map_pos.y as f64 + 1. - gs.player.pos.y) * delta_dist.y
                 },
             };
 
@@ -235,9 +212,9 @@ impl RayCaster {
             }
 
             let distance: f64 = if side == 0 {
-                (map_pos.x as f64 - self.player.pos.x + (1. - step.x) / 2.) / ray.dir.x
+                (map_pos.x as f64 - gs.player.pos.x + (1. - step.x) / 2.) / ray.dir.x
             } else {
-                (map_pos.y as f64 - self.player.pos.y + (1. - step.y) / 2.) / ray.dir.y
+                (map_pos.y as f64 - gs.player.pos.y + (1. - step.y) / 2.) / ray.dir.y
             };
 
             // let correct_distance = distance * (self.player.dir.angle() - ray.dir.angle()).cos();
@@ -248,7 +225,7 @@ impl RayCaster {
                 height = HEIGHT as f64;
             }
 
-            let shear = (self.player.pitch * HEIGHT as f64 / 2.0) as usize;
+            let shear = (gs.player.pitch * HEIGHT as f64 / 2.0) as usize;
 
             // fog
             cell.color.mul_assign(1. / (1. + correct_distance * correct_distance * 0.0001 + shear as f64 * 0.002));
@@ -260,65 +237,6 @@ impl RayCaster {
         }
 
         Ok(())
-    }
-
-    pub fn update_player(&mut self) {
-        let new_pos_x = Vector::new(self.player.pos.x + self.player.vel.x, self.player.pos.y);
-        if self.is_valid_position(&new_pos_x) {
-            self.player.pos = new_pos_x;
-        }
-
-        let new_pos_y = Vector::new(self.player.pos.x, self.player.pos.y + self.player.vel.y);
-        if self.is_valid_position(&new_pos_y) {
-            self.player.pos = new_pos_y;
-        }
-
-        self.player.vel *= 0.8;
-    }
-
-    fn is_valid_position(&self, pos: &Vector<f64>) -> bool {
-        if let Some(row) = self.map.get(pos.y as usize) {
-            if let Some(cell) = row.get(pos.x as usize) {
-                if cell.solid == MapCellType::Empty {
-                    return true;
-                }
-            }
-        }
-
-        false
-    }
-
-    pub fn change_direction(&mut self, dir: Direction) {
-        const ROTATESPEED: f64 = 0.001;
-        let acceleration = unsafe { ACCELERATION };
-
-        match dir {
-            Direction::Down => {
-                self.player.vel.x -= self.player.dir.x * acceleration;
-                self.player.vel.y -= self.player.dir.y * acceleration;
-            }
-            Direction::Up => {
-                self.player.vel.x += self.player.dir.x * acceleration;
-                self.player.vel.y += self.player.dir.y * acceleration;
-            }
-            Direction::Left => {
-                let ortho = self.player.dir.orthogonal(Direction::Left);
-                self.player.vel.x -= ortho.x * acceleration;
-                self.player.vel.y -= ortho.y * acceleration;
-            }
-            Direction::Right => {
-                let ortho = self.player.dir.orthogonal(Direction::Right);
-                self.player.vel.x -= ortho.x * acceleration;
-                self.player.vel.y -= ortho.y * acceleration;
-            }
-            Direction::Mouse(dx, dy) => {
-                self.player.dir = self.player.dir.rotate(dx * ROTATESPEED);
-                let new_pitch = self.player.pitch - dy * ROTATESPEED;
-                if new_pitch > 0. && new_pitch < 1. {
-                    self.player.pitch = new_pitch;
-                }
-            }
-        }
     }
 }
 

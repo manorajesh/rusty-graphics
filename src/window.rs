@@ -5,7 +5,7 @@ use winit::{
     window::{CursorGrabMode, Window, WindowBuilder},
 };
 
-use crate::{HEIGHT, WIDTH, SCALEFACTOR};
+use crate::{HEIGHT, WIDTH};
 
 pub struct GameWindow {
     pub window: Window,
