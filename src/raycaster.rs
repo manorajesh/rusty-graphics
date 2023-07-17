@@ -104,9 +104,12 @@ impl RayCaster {
             // map
             for y in 0..self.map.len() {
                 for x in 0..self.map[y].len() {
-                    let cell = self.map[y][x];
-
                     let dist = distance_squared(Vector::new(x as f64, y as f64), self.player.pos);
+                    if dist > self.fov * self.fov {
+                        continue;
+                    }
+                    
+                    let cell = self.map[y][x];
 
                     // cell.color gets darker farther away from the player
                     let color = [

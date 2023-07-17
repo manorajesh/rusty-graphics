@@ -12,8 +12,9 @@ mod window;
 pub const WIDTH: u32 = 1920;
 pub const HEIGHT: u32 = 1080;
 pub const SCALEFACTOR: u32 = 1;
+const DEFAULT_ACCELERATION: f64 = 0.1;
 
-pub static mut ACCELERATION: f64 = 0.1;
+pub static mut ACCELERATION: f64 = DEFAULT_ACCELERATION;
 
 fn main() -> Result<(), Error> {
     let mut input = WinitInputHelper::new();
@@ -31,9 +32,7 @@ fn main() -> Result<(), Error> {
                 let frame = gw.pixels.frame_mut();
 
                 // Clear the frame
-                for pixel in frame.chunks_exact_mut(4) {
-                    pixel.copy_from_slice(&[0, 0, 0, 0]); // Set every pixel to black
-                }
+                frame.fill(0);
 
                 raycaster.update_player();
 
@@ -72,9 +71,13 @@ fn main() -> Result<(), Error> {
                 unsafe {
                     ACCELERATION = 0.5;
                 }
+            } else if input.held_control() {
+                unsafe {
+                    ACCELERATION = 0.01;
+                }
             } else {
                 unsafe {
-                    ACCELERATION = 0.1;
+                    ACCELERATION = DEFAULT_ACCELERATION;
                 }
             }
 
