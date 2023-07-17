@@ -14,7 +14,7 @@ pub struct GameWindow {
 
 impl GameWindow {
     pub fn new(title: &str, event_loop: &EventLoop<()>) -> Result<Self, Error> {
-        let size = LogicalSize::new(WIDTH / SCALEFACTOR, HEIGHT / SCALEFACTOR);
+        let size = LogicalSize::new(WIDTH, HEIGHT);
         let window = WindowBuilder::new()
             .with_title(title)
             .with_inner_size(size)
@@ -26,9 +26,11 @@ impl GameWindow {
             .or_else(|_e| window.set_cursor_grab(CursorGrabMode::Locked))
             .unwrap();
         window.set_cursor_visible(false);
+
+        // let size = window.inner_size();
     
         let surface_texture = SurfaceTexture::new(WIDTH, HEIGHT, &window);
-        let pixels = PixelsBuilder::new(WIDTH, HEIGHT, surface_texture)
+        let pixels = PixelsBuilder::new(size.width, size.height, surface_texture)
             .enable_vsync(true)
             .build()?;
     
