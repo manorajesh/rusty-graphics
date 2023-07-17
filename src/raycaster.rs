@@ -15,6 +15,7 @@ struct Player {
     pub pos: Vector<f64>,
     pub dir: Vector<f64>,
     pub vel: Vector<f64>,
+    pub pitch: f64, // -1.0 to 1.0
 }
 
 pub enum Direction {
@@ -63,6 +64,7 @@ impl RayCaster {
                 pos: Vector { x: 22.0, y: 12.0 },
                 dir: Vector { x: -1.0, y: 0.0 },
                 vel: Vector { x: 0., y: 0. },
+                pitch: 0.5,
             },
 
             map: generate_map(),
@@ -104,7 +106,17 @@ impl RayCaster {
                 for x in 0..self.map[y].len() {
                     let cell = self.map[y][x];
 
-                    set_pixel(frame, x, y, cell.color, 1);
+                    let dist = distance_squared(Vector::new(x as f64, y as f64), self.player.pos);
+
+                    // cell.color gets darker farther away from the player
+                    let color = [
+                        cell.color[0],
+                        cell.color[1],
+                        cell.color[2],
+                        (255. * (1.01 - (dist / (self.fov * self.fov)).powf(0.01))) as u8,
+                    ];
+
+                    set_pixel(frame, x, y, color, 1);
                     // filled_rectangle(frame, x, y, x+1, y+2, color, PIXELSIZE)
                 }
             }
@@ -126,25 +138,25 @@ impl RayCaster {
                 1,
             );
 
-            // orthogonal line
-            line(
-                frame,
-                self.player.pos.x as isize,
-                self.player.pos.y as isize,
-                (self.player.pos.x + self.player.dir.orthogonal(Direction::Left).x * 10.) as isize,
-                (self.player.pos.y + self.player.dir.orthogonal(Direction::Left).y * 10.) as isize,
-                [0, 255, 0, 255],
-                1,
-            );
-            line(
-                frame,
-                self.player.pos.x as isize,
-                self.player.pos.y as isize,
-                (self.player.pos.x + self.player.dir.orthogonal(Direction::Right).x * 10.) as isize,
-                (self.player.pos.y + self.player.dir.orthogonal(Direction::Right).y * 10.) as isize,
-                [0, 0, 255, 255],
-                1,
-            );
+            // // orthogonal line
+            // line(
+            //     frame,
+            //     self.player.pos.x as isize,
+            //     self.player.pos.y as isize,
+            //     (self.player.pos.x + self.player.dir.orthogonal(Direction::Left).x * 10.) as isize,
+            //     (self.player.pos.y + self.player.dir.orthogonal(Direction::Left).y * 10.) as isize,
+            //     [0, 255, 0, 255],
+            //     1,
+            // );
+            // line(
+            //     frame,
+            //     self.player.pos.x as isize,
+            //     self.player.pos.y as isize,
+            //     (self.player.pos.x + self.player.dir.orthogonal(Direction::Right).x * 10.) as isize,
+            //     (self.player.pos.y + self.player.dir.orthogonal(Direction::Right).y * 10.) as isize,
+            //     [0, 0, 255, 255],
+            //     1,
+            // );
             return Ok(());
         }
 
@@ -225,20 +237,25 @@ impl RayCaster {
                 (map_pos.y as f64 - self.player.pos.y + (1. - step.y) / 2.) / ray.dir.y
             };
 
-            let correct_distance = distance * (self.player.dir.angle() - ray.dir.angle()).cos();
-
-            // fog
-            cell.color.mul_assign(1. / (1. + correct_distance * correct_distance * 0.0001));
+            // let correct_distance = distance * (self.player.dir.angle() - ray.dir.angle()).cos();
+            let correct_distance = distance;
 
             let mut height = (HEIGHT as f64 / correct_distance).abs() * 15.;
             if height > HEIGHT as f64 {
                 height = HEIGHT as f64;
             }
 
-            let column_start = HEIGHT as usize / 2 - height as usize / 2;
-            let column_end = HEIGHT as usize / 2 + height as usize / 2;
+            let shear = (self.player.pitch * HEIGHT as f64 / 2.0) as usize;
+
+            // fog
+            cell.color.mul_assign(1. / (1. + correct_distance * correct_distance * 0.0001 + shear as f64 * 0.002));
+
+            let column_start = 0;
+            let column_end = HEIGHT as usize / 2 + height as usize / 2 + shear;
+
             verline(frame, i, column_start, column_end, cell.color, 1);
         }
+
         Ok(())
     }
 
@@ -291,8 +308,12 @@ impl RayCaster {
                 self.player.vel.x -= ortho.x * acceleration;
                 self.player.vel.y -= ortho.y * acceleration;
             }
-            Direction::Mouse(dx, _) => {
+            Direction::Mouse(dx, dy) => {
                 self.player.dir = self.player.dir.rotate(dx * ROTATESPEED);
+                let new_pitch = self.player.pitch - dy * ROTATESPEED;
+                if new_pitch > 0. && new_pitch < 1. {
+                    self.player.pitch = new_pitch;
+                }
             }
         }
     }
@@ -344,4 +365,10 @@ fn generate_map() -> Vec<Vec<MapCell>> {
     }
 
     buffer
+}
+
+fn distance_squared(p1: Vector<f64>, p2: Vector<f64>) -> f64 {
+    let dx = p2.x - p1.x;
+    let dy = p2.y - p1.y;
+    dx * dx + dy * dy
 }
