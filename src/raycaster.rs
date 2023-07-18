@@ -1,7 +1,9 @@
 use crate::{line, set_pixel, vector::Vector, verline, HEIGHT, WIDTH, gamestate::GameState};
+use image::GenericImageView;
 
 pub struct RayCaster {
     pub map: Vec<Vec<MapCell>>,
+    pub wall_texture: Vec<Vec<[u8; 4]>>,
     fov: f64,
 }
 
@@ -73,6 +75,7 @@ impl RayCaster {
             //     [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
             //   ],
             fov,
+            wall_texture: load_texture(),
         }
     }
 
@@ -217,8 +220,8 @@ impl RayCaster {
                 (map_pos.y as f64 - gs.player.pos.y + (1. - step.y) / 2.) / ray.dir.y
             };
 
-            // let correct_distance = distance * (self.player.dir.angle() - ray.dir.angle()).cos();
-            let correct_distance = distance;
+            let correct_distance = distance * (gs.player.dir.angle() - ray.dir.angle()).cos();
+            // let correct_distance = distance;
 
             let mut height = (HEIGHT as f64 / correct_distance).abs() * 15.;
             if height > HEIGHT as f64 {
@@ -227,13 +230,39 @@ impl RayCaster {
 
             let shear = (gs.player.pitch * HEIGHT as f64 / 2.0) as usize;
 
-            // fog
-            cell.color.mul_assign(1. / (1. + correct_distance * correct_distance * 0.0001 + shear as f64 * 0.002));
-
-            let column_start = 0;
+            let column_start = HEIGHT as usize / 2 - height as usize / 2 + shear;
             let column_end = HEIGHT as usize / 2 + height as usize / 2 + shear;
 
-            verline(frame, i, column_start, column_end, cell.color, 1);
+            // Calculate texture coordinates.
+            let wall_x = if side == 0 {
+                gs.player.pos.y + correct_distance * ray.dir.y
+            } else {
+                gs.player.pos.x + correct_distance * ray.dir.x
+            };
+
+            
+            let tex_x = if side == 0 {
+                gs.player.pos.y + correct_distance * ray.dir.y
+            } else {
+                gs.player.pos.x + correct_distance * ray.dir.x
+            };
+
+            let tex_x = (tex_x - tex_x.floor()) * 128.;
+
+            let step = 1. * 128. / 128.;
+            let mut tex_pos = (column_start as f64 - shear as f64 - HEIGHT as f64 / 2. + height / 2.) * step;
+            for y in column_start..column_end {
+                let tex_y = (y - column_start) as f64 / height;
+            
+                // Map the tex_y to the texture height.
+                let tex_y = (tex_y * 128.) as usize;
+                
+                // Sample the color from the texture.
+                let pixel = self.wall_texture[tex_y][tex_x as usize];
+                
+                // Draw the pixel on the screen.
+                set_pixel(frame, i, y, pixel, 1);
+            }
         }
 
         Ok(())
@@ -241,15 +270,16 @@ impl RayCaster {
 }
 
 trait MulAssign {
-    fn mul_assign(&mut self, rhs: f64);
+    fn mul_assign(&mut self, rhs: f64) -> Self;
 }
 
 impl MulAssign for [u8; 4] {
-    fn mul_assign(&mut self, rhs: f64) {
+    fn mul_assign(&mut self, rhs: f64) -> Self {
         self[0] = (self[0] as f64 * rhs) as u8;
         self[1] = (self[1] as f64 * rhs) as u8;
         self[2] = (self[2] as f64 * rhs) as u8;
         self[3] = (self[3] as f64 * rhs) as u8;
+        *self
     }
 }
 
@@ -292,4 +322,21 @@ fn distance_squared(p1: Vector<f64>, p2: Vector<f64>) -> f64 {
     let dx = p2.x - p1.x;
     let dy = p2.y - p1.y;
     dx * dx + dy * dy
+}
+
+fn load_texture() -> Vec<Vec<[u8; 4]>> {
+    let img = image::open("assets/concrete_wall.png").unwrap();
+    let img = img.to_rgba8();
+    let (width, height) = img.dimensions();
+
+    let mut buffer: Vec<Vec<[u8; 4]>> = vec![vec![[0, 0, 0, 0]; width as usize]; height as usize];
+
+    for y in 0..height {
+        for x in 0..width {
+            let pixel = img.get_pixel(x, y).0;
+            buffer[y as usize][x as usize] = [pixel[0], pixel[1], pixel[2], pixel[3]];
+        }
+    }
+
+    buffer
 }

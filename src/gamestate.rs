@@ -9,7 +9,7 @@ pub struct GameState {
     pub rotation_speed: f64,
 }
 
-#[derive(Default)]
+#[derive(Debug)]
 pub struct Enemy {
     pub pos: Vector<f64>,
     pub vel: Vector<f64>,
@@ -18,10 +18,10 @@ pub struct Enemy {
     pub line_of_sight: bool,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Billboard(Vec<Vec<[u8; 4]>>);
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub enum EnemyState {
     Chasing,
     Hiding,
@@ -53,6 +53,34 @@ impl Default for Player {
             pitch: 0.5,
         }
     }
+}
+
+impl Default for Enemy {
+    fn default() -> Self {
+        let billboard = load_billboard("assets/enemy.png");
+        Self {
+            billboard,
+            pos: Vector::new(0.0, 0.0),
+            vel: Vector::new(0.0, 0.0),
+            state: EnemyState::default(),
+            line_of_sight: false,
+        }
+    }
+}
+
+fn load_billboard(path: &str) -> Billboard {
+    let img = image::open(path).unwrap();
+    let img = img.to_rgba8();
+    let (width, height) = img.dimensions();
+
+    let mut billboard = vec![vec![[0; 4]; width as usize]; height as usize];
+    for (y, row) in billboard.iter_mut().enumerate() {
+        for (x, pixel) in row.iter_mut().enumerate() {
+            let img_pixel = img.get_pixel(x as u32, y as u32);
+            *pixel = [img_pixel[0], img_pixel[1], img_pixel[2], img_pixel[3]];
+        }
+    }
+    Billboard(billboard)
 }
 
 impl GameState {

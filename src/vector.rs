@@ -1,6 +1,6 @@
 use crate::gamestate::Direction;
 
-#[derive(Clone, Copy, PartialEq, PartialOrd, Default)]
+#[derive(Clone, Copy, PartialEq, PartialOrd, Default, Debug)]
 pub struct Vector<T> {
     pub x: T,
     pub y: T,
