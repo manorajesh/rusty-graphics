@@ -93,9 +93,9 @@ impl RayCaster {
 
                     // cell.color gets darker farther away from the player
                     let color = [
-                        cell.color[0],
-                        cell.color[1],
-                        cell.color[2],
+                        255,
+                        255,
+                        255,
                         (255. * (1.01 - (dist / (self.fov * self.fov)).powf(0.01))) as u8,
                     ];
 
@@ -214,16 +214,16 @@ impl RayCaster {
                 cell.color.div_assign(2)
             }
 
-            let distance: f64 = if side == 0 {
+            let distance = if side == 0 {
                 (map_pos.x as f64 - gs.player.pos.x + (1. - step.x) / 2.) / ray.dir.x
             } else {
                 (map_pos.y as f64 - gs.player.pos.y + (1. - step.y) / 2.) / ray.dir.y
             };
 
-            let correct_distance = distance * (gs.player.dir.angle() - ray.dir.angle()).cos();
+            // let correct_distance = distance * (gs.player.dir.angle() - ray.dir.angle()).cos();
             // let correct_distance = distance;
 
-            let mut height = (HEIGHT as f64 / correct_distance).abs() * 15.;
+            let mut height = (HEIGHT as f64 / distance).abs() * 15.;
             if height > HEIGHT as f64 {
                 height = HEIGHT as f64;
             }
@@ -233,36 +233,41 @@ impl RayCaster {
             let column_start = HEIGHT as usize / 2 - height as usize / 2 + shear;
             let column_end = HEIGHT as usize / 2 + height as usize / 2 + shear;
 
-            // Calculate texture coordinates.
+            // Calculate the exact position where the wall was hit.
             let wall_x = if side == 0 {
-                gs.player.pos.y + correct_distance * ray.dir.y
+                gs.player.pos.y + distance * ray.dir.y
             } else {
-                gs.player.pos.x + correct_distance * ray.dir.x
+                gs.player.pos.x + distance * ray.dir.x
             };
 
-            
-            let tex_x = if side == 0 {
-                gs.player.pos.y + correct_distance * ray.dir.y
-            } else {
-                gs.player.pos.x + correct_distance * ray.dir.x
-            };
+            let wall_x = wall_x - wall_x.floor();
 
-            let tex_x = (tex_x - tex_x.floor()) * 128.;
+            // Calculate the x-coordinate on the texture.
+let mut tex_x = (wall_x * 128.).floor() as usize;
+if (side == 0 && ray.dir.x > 0.0) || (side == 1 && ray.dir.y < 0.0) {
+    tex_x = 128 - tex_x - 1;
+}
 
-            let step = 1. * 128. / 128.;
-            let mut tex_pos = (column_start as f64 - shear as f64 - HEIGHT as f64 / 2. + height / 2.) * step;
-            for y in column_start..column_end {
-                let tex_y = (y - column_start) as f64 / height;
-            
-                // Map the tex_y to the texture height.
-                let tex_y = (tex_y * 128.) as usize;
-                
-                // Sample the color from the texture.
-                let pixel = self.wall_texture[tex_y][tex_x as usize];
-                
-                // Draw the pixel on the screen.
-                set_pixel(frame, i, y, pixel, 1);
-            }
+            // Compute how much to increase the texture coordinate per screen pixel.
+let tex_height = 128.;
+let step = tex_height / height;
+let mut tex_pos = (column_start as f64 - HEIGHT as f64 / 2.0 + height / 2.0) * step;
+
+for y in column_start..column_end {
+    let tex_y = (tex_pos as usize) & (tex_height as usize - 1);
+    tex_pos += step;
+
+    // Sample the color from the texture.
+    let mut pixel = self.wall_texture[tex_x][tex_y];
+    
+    // Make the color darker for y-sides.
+    if side == 1 {
+        pixel.map(|c| (c >> 1) & 0x7F);
+    }
+
+    // Draw the pixel on the screen.
+    set_pixel(frame, i, y, pixel.mul_assign(1. / (1. + distance * distance * 0.0001 + shear as f64 * 0.002)), 1);
+}
         }
 
         Ok(())
