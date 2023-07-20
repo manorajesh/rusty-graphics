@@ -1,15 +1,12 @@
 use crate::{line, set_pixel, vector::Vector, verline, HEIGHT, WIDTH, gamestate::GameState};
-use image::GenericImageView;
 
 pub struct RayCaster {
     pub map: Vec<Vec<MapCell>>,
-    pub wall_texture: Vec<Vec<[u8; 4]>>,
     fov: f64,
 }
 
 struct Ray {
     dir: Vector<f64>,
-    hit: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
@@ -75,7 +72,6 @@ impl RayCaster {
             //     [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
             //   ],
             fov,
-            wall_texture: load_texture(),
         }
     }
 
@@ -93,10 +89,11 @@ impl RayCaster {
 
                     // cell.color gets darker farther away from the player
                     let color = [
-                        255,
-                        255,
-                        255,
-                        (255. * (1.01 - (dist / (self.fov * self.fov)).powf(0.01))) as u8,
+                        cell.color[0],
+                        cell.color[1],
+                        cell.color[2],   
+                        (255. * (1.01 - (dist / (self.fov * self.fov)).powf(0.1))) as u8,
+                        // 255,
                     ];
 
                     set_pixel(frame, x, y, color, 1);
@@ -146,11 +143,10 @@ impl RayCaster {
         // raycasting
         let half_fov: f64 = self.fov / 2.;
         const NUMRAYS: f64 = WIDTH as f64;
-        for i in 0..NUMRAYS as usize {
+        'screen: for i in 0..NUMRAYS as usize {
             let angle = (self.fov / NUMRAYS * i as f64 - half_fov) * 1f64.to_radians();
-            let mut ray = Ray {
+            let ray = Ray {
                 dir: gs.player.dir.rotate(angle),
-                hit: false,
             };
 
             // map_pos is the current map cell we are in
@@ -191,8 +187,9 @@ impl RayCaster {
             };
 
             // DDA
-            let mut side = 0;
-            while !ray.hit {
+            let mut side;
+            let mut cell;
+            loop {
                 if side_dist.x < side_dist.y {
                     side_dist.x += delta_dist.x;
                     map_pos.x += step.x as i32;
@@ -203,12 +200,18 @@ impl RayCaster {
                     side = 1;
                 }
 
-                if self.map[map_pos.y as usize][map_pos.x as usize].solid != MapCellType::Empty {
-                    ray.hit = true;
+                match self.map.get(map_pos.y as usize).and_then(|row| row.get(map_pos.x as usize)) {
+                    Some(position) => {
+                        if position.solid != MapCellType::Empty {
+                            cell = *position;
+                            break;
+                        }
+                    }
+                    _ => {
+                        continue 'screen;
+                    }
                 }
             }
-
-            let mut cell = self.map[map_pos.y as usize][map_pos.x as usize];
 
             if side == 1 {
                 cell.color.div_assign(2)
@@ -220,7 +223,7 @@ impl RayCaster {
                 (map_pos.y as f64 - gs.player.pos.y + (1. - step.y) / 2.) / ray.dir.y
             };
 
-            // let correct_distance = distance * (gs.player.dir.angle() - ray.dir.angle()).cos();
+            let correct_distance = distance * (gs.player.dir.angle() - ray.dir.angle()).cos();
             // let correct_distance = distance;
 
             let mut height = (HEIGHT as f64 / distance).abs() * 15.;
@@ -230,46 +233,14 @@ impl RayCaster {
 
             let shear = (gs.player.pitch * HEIGHT as f64 / 2.0) as usize;
 
-            let column_start = HEIGHT as usize / 2 - height as usize / 2 + shear;
+            // fog
+            cell.color.mul_assign(1. / (1. + correct_distance * correct_distance * 0.0001 + shear as f64 * 0.002));
+
+            let column_start = 0;
             let column_end = HEIGHT as usize / 2 + height as usize / 2 + shear;
 
-            // Calculate the exact position where the wall was hit.
-            let wall_x = if side == 0 {
-                gs.player.pos.y + distance * ray.dir.y
-            } else {
-                gs.player.pos.x + distance * ray.dir.x
-            };
-
-            let wall_x = wall_x - wall_x.floor();
-
-            // Calculate the x-coordinate on the texture.
-let mut tex_x = (wall_x * 128.).floor() as usize;
-if (side == 0 && ray.dir.x > 0.0) || (side == 1 && ray.dir.y < 0.0) {
-    tex_x = 128 - tex_x - 1;
-}
-
-            // Compute how much to increase the texture coordinate per screen pixel.
-let tex_height = 128.;
-let step = tex_height / height;
-let mut tex_pos = (column_start as f64 - HEIGHT as f64 / 2.0 + height / 2.0) * step;
-
-for y in column_start..column_end {
-    let tex_y = (tex_pos as usize) & (tex_height as usize - 1);
-    tex_pos += step;
-
-    // Sample the color from the texture.
-    let mut pixel = self.wall_texture[tex_x][tex_y];
-    
-    // Make the color darker for y-sides.
-    if side == 1 {
-        pixel.map(|c| (c >> 1) & 0x7F);
-    }
-
-    // Draw the pixel on the screen.
-    set_pixel(frame, i, y, pixel.mul_assign(1. / (1. + distance * distance * 0.0001 + shear as f64 * 0.002)), 1);
-}
+            verline(frame, i, column_start, column_end, cell.color, 1);
         }
-
         Ok(())
     }
 }
@@ -302,7 +273,7 @@ impl DivAssign for [u8; 4] {
 }
 
 fn generate_map() -> Vec<Vec<MapCell>> {
-    let img = image::open("assets/map.png").unwrap();
+    let img = image::open("assets/map2.png").unwrap();
     let img = img.to_rgba8();
     let (width, height) = img.dimensions();
 
@@ -311,7 +282,7 @@ fn generate_map() -> Vec<Vec<MapCell>> {
     for y in 0..height {
         for x in 0..width {
             let pixel = img.get_pixel(x, y).0;
-            let solid = if pixel == [0, 0, 0, 0] {
+            let solid = if pixel == [0, 0, 0, 0] || pixel[3] < 255 {
                 MapCellType::Empty
             } else {
                 MapCellType::Wall
@@ -329,19 +300,19 @@ fn distance_squared(p1: Vector<f64>, p2: Vector<f64>) -> f64 {
     dx * dx + dy * dy
 }
 
-fn load_texture() -> Vec<Vec<[u8; 4]>> {
-    let img = image::open("assets/concrete_wall.png").unwrap();
-    let img = img.to_rgba8();
-    let (width, height) = img.dimensions();
+// fn load_texture() -> Vec<Vec<[u8; 4]>> {
+//     let img = image::open("assets/concrete_wall.png").unwrap();
+//     let img = img.to_rgba8();
+//     let (width, height) = img.dimensions();
 
-    let mut buffer: Vec<Vec<[u8; 4]>> = vec![vec![[0, 0, 0, 0]; width as usize]; height as usize];
+//     let mut buffer: Vec<Vec<[u8; 4]>> = vec![vec![[0, 0, 0, 0]; width as usize]; height as usize];
 
-    for y in 0..height {
-        for x in 0..width {
-            let pixel = img.get_pixel(x, y).0;
-            buffer[y as usize][x as usize] = [pixel[0], pixel[1], pixel[2], pixel[3]];
-        }
-    }
+//     for y in 0..height {
+//         for x in 0..width {
+//             let pixel = img.get_pixel(x, y).0;
+//             buffer[y as usize][x as usize] = [pixel[0], pixel[1], pixel[2], pixel[3]];
+//         }
+//     }
 
-    buffer
-}
+//     buffer
+// }

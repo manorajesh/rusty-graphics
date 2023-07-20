@@ -111,6 +111,10 @@ impl GameState {
     }
 
     fn is_valid_position(&self, pos: &Vector<f64>, map: &Vec<Vec<MapCell>>) -> bool {
+        if pos.x < 0. || pos.y < 0. {
+            return false;
+        }
+        
         if let Some(row) = map.get(pos.y as usize) {
             if let Some(cell) = row.get(pos.x as usize) {
                 if cell.solid == MapCellType::Empty {
