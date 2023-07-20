@@ -118,6 +118,33 @@ impl RayCaster {
                 1,
             );
 
+            // enemy
+            set_pixel(
+                frame,
+                gs.enemy.pos.x as usize,
+                gs.enemy.pos.y as usize,
+                [25, 0, 255, 255],
+                1,
+            );
+            line(
+                frame,
+                gs.enemy.pos.x as isize,
+                gs.enemy.pos.y as isize,
+                (gs.enemy.pos.x + gs.player.dir.orthogonal(crate::gamestate::Direction::Left).x * 10.) as isize,
+                (gs.enemy.pos.y + gs.player.dir.orthogonal(crate::gamestate::Direction::Left).y * 10.) as isize,
+                [0, 255, 0, 255],
+                1,
+            );
+            line(
+                frame,
+                gs.enemy.pos.x as isize,
+                gs.enemy.pos.y as isize,
+                (gs.enemy.pos.x + gs.player.dir.orthogonal(crate::gamestate::Direction::Right).x * 10.) as isize,
+                (gs.enemy.pos.y + gs.player.dir.orthogonal(crate::gamestate::Direction::Right).y * 10.) as isize,
+                [0, 0, 255, 255],
+                1,
+            );
+
             // // orthogonal line
             // line(
             //     frame,
@@ -189,6 +216,8 @@ impl RayCaster {
             // DDA
             let mut side;
             let mut cell;
+            let mut billboard_hit = false;
+            let mut billboard_dist = 0.;
             loop {
                 if side_dist.x < side_dist.y {
                     side_dist.x += delta_dist.x;
@@ -198,6 +227,11 @@ impl RayCaster {
                     side_dist.y += delta_dist.y;
                     map_pos.y += step.y as i32;
                     side = 1;
+                }
+
+                if gs.billboard_intersection(map_pos.into()) {
+                    billboard_hit = true;
+                    billboard_dist = distance_squared(gs.player.pos, map_pos.into());
                 }
 
                 match self.map.get(map_pos.y as usize).and_then(|row| row.get(map_pos.x as usize)) {
@@ -212,6 +246,7 @@ impl RayCaster {
                     }
                 }
             }
+            // println!("billboard hit: {}", billboard_hit);
 
             if side == 1 {
                 cell.color.div_assign(2)
@@ -223,8 +258,8 @@ impl RayCaster {
                 (map_pos.y as f64 - gs.player.pos.y + (1. - step.y) / 2.) / ray.dir.y
             };
 
-            let correct_distance = distance * (gs.player.dir.angle() - ray.dir.angle()).cos();
-            // let correct_distance = distance;
+            // let correct_distance = distance * (gs.player.dir.angle() - ray.dir.angle()).cos();
+            let correct_distance = distance;
 
             let mut height = (HEIGHT as f64 / distance).abs() * 15.;
             if height > HEIGHT as f64 {
@@ -236,10 +271,19 @@ impl RayCaster {
             // fog
             cell.color.mul_assign(1. / (1. + correct_distance * correct_distance * 0.0001 + shear as f64 * 0.002));
 
-            let column_start = 0;
+            let column_start = HEIGHT as usize / 2 - height as usize / 2 + shear;
             let column_end = HEIGHT as usize / 2 + height as usize / 2 + shear;
 
             verline(frame, i, column_start, column_end, cell.color, 1);
+            if billboard_hit {
+                let mut billboard_height = (5000 as f64 / billboard_dist).abs() * 15.;
+                if billboard_height > HEIGHT as f64 {
+                    billboard_height = HEIGHT as f64;
+                }
+                let billboard_start = HEIGHT as usize / 2 - billboard_height as usize / 2 + shear;
+                let billboard_end = HEIGHT as usize / 2 + billboard_height as usize / 2 + shear;
+                verline(frame, i, billboard_start, billboard_end, [255, 255, 255, 255], 1);
+            }
         }
         Ok(())
     }

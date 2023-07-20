@@ -13,6 +13,7 @@ pub struct GameState {
 pub struct Enemy {
     pub pos: Vector<f64>,
     pub vel: Vector<f64>,
+    pub dir: Vector<f64>,
     pub state: EnemyState,
     pub billboard: Billboard,
     pub line_of_sight: bool,
@@ -60,8 +61,9 @@ impl Default for Enemy {
         let billboard = load_billboard("assets/enemy.png");
         Self {
             billboard,
-            pos: Vector::new(0.0, 0.0),
+            pos: Vector::new(154.6808076366139, 62.11241662731044),
             vel: Vector::new(0.0, 0.0),
+            dir: Vector::new(1.0, 0.0),
             state: EnemyState::default(),
             line_of_sight: false,
         }
@@ -92,7 +94,7 @@ impl GameState {
             ..Default::default()
         }
     }
-    pub fn update_player(&mut self, map: &Vec<Vec<MapCell>>) {
+    pub fn update_positions(&mut self, map: &Vec<Vec<MapCell>>) {
         while !self.is_valid_position(&self.player.pos, map) {
             self.player.pos += 1.;
         }
@@ -155,4 +157,29 @@ impl GameState {
             }
         }
     }
+
+    pub fn billboard_intersection(&self, ray: Vector<f64>) -> bool {
+        let billboard = &self.enemy.billboard.0;
+        let _half_width = billboard[0].len() as f64 / 2.0;
+    
+        let p1 = self.enemy.pos + self.player.dir.orthogonal(Direction::Left) * 10.;
+        let p2 = self.enemy.pos + self.player.dir.orthogonal(Direction::Right) * 10.;
+
+        // println!("p1: {:?}, p2: {:?}, ray: {:?}", p1, p2, ray);
+    
+        if !is_between(ray.x, p1.x, p2.x) {
+            return false;
+        }
+
+        if !is_between(ray.y, p1.y, p2.y) {
+            return false;
+        }
+
+        true
+    }    
+}
+
+fn is_between<T: std::cmp::PartialOrd>(n: T, a: T, b: T) -> bool {
+    let (start, end) = if a < b { (a, b) } else { (b, a) };
+    start <= n && n <= end
 }

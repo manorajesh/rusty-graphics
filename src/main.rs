@@ -33,12 +33,12 @@ fn main() -> Result<(), Error> {
                 // Clear the frame
                 frame.fill(0);
 
-                gs.update_player(&raycaster.map);
+                gs.update_positions(&raycaster.map);
 
                 raycaster.draw(frame, &gs).unwrap();
                 gw.pixels.render().unwrap();
                 let elapsed = now.elapsed().as_millis();
-                println!("FPS: {}", 1000 / elapsed)
+                // println!("FPS: {}", 1000 / elapsed)
             }
 
             Event::WindowEvent {
@@ -67,7 +67,7 @@ fn main() -> Result<(), Error> {
 
         if input.update(&event) {
             if input.held_shift() {
-                gs.acceleration = 0.5;
+                gs.acceleration = 0.4;
             } else if input.held_control() {
                 gs.acceleration = 0.01;
             } else {
@@ -92,6 +92,10 @@ fn main() -> Result<(), Error> {
 
             if input.key_pressed(VirtualKeyCode::M) {
                 gs.map_toggle = !gs.map_toggle;
+            }
+
+            if input.key_pressed(VirtualKeyCode::Escape) {
+                *control_flow = winit::event_loop::ControlFlow::Exit;
             }
         }
 

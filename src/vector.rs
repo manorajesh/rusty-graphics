@@ -1,6 +1,6 @@
 use crate::gamestate::Direction;
 
-#[derive(Clone, Copy, PartialEq, PartialOrd, Default, Debug)]
+#[derive(Clone, Copy, PartialEq, PartialOrd, Default, Debug, Eq, Ord)]
 pub struct Vector<T> {
     pub x: T,
     pub y: T,
@@ -43,6 +43,28 @@ impl<T> Vector<T> {
             _ => panic!("Invalid direction"),
         }
     }
+
+    pub fn dot(&self, rhs: Self) -> T
+    where
+        T: std::ops::Mul<Output = T> + std::ops::Add<Output = T> + Copy,
+    {
+        self.x * rhs.x + self.y * rhs.y
+    }
+}
+
+impl Vector<f64> {
+    pub fn magnitude(&self) -> f64 {
+        (self.x * self.x + self.y * self.y).sqrt()
+    }
+
+    pub fn normalize(&self) -> Vector<f64> {
+        let magnitude = self.magnitude();
+        if magnitude > 0.0 {
+            Vector { x: self.x / magnitude, y: self.y / magnitude }
+        } else {
+            Vector { x: self.x, y: self.y }
+        }
+    }
 }
 
 impl<T> std::ops::Add for Vector<T>
@@ -55,6 +77,20 @@ where
         Self {
             x: self.x + rhs.x,
             y: self.y + rhs.y,
+        }
+    }
+}
+
+impl<T> std::ops::Sub for Vector<T>
+where
+    T: std::ops::Sub<Output = T>,
+{
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
         }
     }
 }
@@ -130,5 +166,23 @@ where
     fn mul_assign(&mut self, rhs: T) {
         self.x *= rhs;
         self.y *= rhs;
+    }
+}
+
+impl From<Vector<f64>> for Vector<i32> {
+    fn from(v: Vector<f64>) -> Self {
+        Self {
+            x: v.x.round() as i32,
+            y: v.y.round() as i32,
+        }
+    }
+}
+
+impl From<Vector<i32>> for Vector<f64> {
+    fn from(v: Vector<i32>) -> Self {
+        Self {
+            x: v.x as f64,
+            y: v.y as f64,
+        }
     }
 }
