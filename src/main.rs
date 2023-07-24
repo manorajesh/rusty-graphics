@@ -184,3 +184,11 @@ pub fn set_pixel(frame: &mut [u8], x: usize, y: usize, color: [u8; 4], scale: us
         }
     }
 }
+
+pub fn set_column(frame: &mut [u8], x: usize, start: usize, column: Vec<[u8; 4]>) {
+    let end = column.len().min(HEIGHT as usize);
+    for y in start..end {
+        let idx = y - start;
+        set_pixel(frame, x, y, column[idx], 1)
+    }
+}

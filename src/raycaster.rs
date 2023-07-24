@@ -1,4 +1,4 @@
-use crate::{line, set_pixel, vector::Vector, verline, HEIGHT, WIDTH, gamestate::GameState};
+use crate::{line, set_pixel, vector::Vector, verline, HEIGHT, WIDTH, gamestate::GameState, set_column};
 
 pub struct RayCaster {
     pub map: Vec<Vec<MapCell>>,
@@ -218,6 +218,7 @@ impl RayCaster {
             let mut cell;
             let mut billboard_hit = false;
             let mut billboard_dist = 0.;
+            let mut billboard_col: Vec<[u8; 4]> = Vec::new();
             loop {
                 if side_dist.x < side_dist.y {
                     side_dist.x += delta_dist.x;
@@ -229,9 +230,10 @@ impl RayCaster {
                     side = 1;
                 }
 
-                if gs.billboard_intersection(map_pos.into()) {
+                if let Some(col) = gs.billboard_intersection(map_pos.into()) {
                     billboard_hit = true;
                     billboard_dist = distance_squared(gs.player.pos, map_pos.into());
+                    billboard_col = col
                 }
 
                 match self.map.get(map_pos.y as usize).and_then(|row| row.get(map_pos.x as usize)) {
@@ -276,13 +278,18 @@ impl RayCaster {
 
             verline(frame, i, column_start, column_end, cell.color, 1);
             if billboard_hit {
-                let mut billboard_height = (5000 as f64 / billboard_dist).abs() * 15.;
+                let mut billboard_height = (1000 as f64 / billboard_dist).abs() * 100.;
                 if billboard_height > HEIGHT as f64 {
                     billboard_height = HEIGHT as f64;
                 }
                 let billboard_start = HEIGHT as usize / 2 - billboard_height as usize / 2 + shear;
                 let billboard_end = HEIGHT as usize / 2 + billboard_height as usize / 2 + shear;
-                verline(frame, i, billboard_start, billboard_end, [255, 255, 255, 255], 1);
+                let mut idx = 0;
+                while let Some(color) = billboard_col.get(idx) {
+                    set_pixel(frame, i, billboard_start+idx, *color, 1);
+                    idx += 1;
+                }
+                // set_column(frame, i, billboard_start, billboard_col)
             }
         }
         Ok(())
@@ -338,7 +345,7 @@ fn generate_map() -> Vec<Vec<MapCell>> {
     buffer
 }
 
-fn distance_squared(p1: Vector<f64>, p2: Vector<f64>) -> f64 {
+pub fn distance_squared(p1: Vector<f64>, p2: Vector<f64>) -> f64 {
     let dx = p2.x - p1.x;
     let dy = p2.y - p1.y;
     dx * dx + dy * dy

@@ -1,4 +1,4 @@
-use crate::{vector::Vector, raycaster::{MapCellType, MapCell}, DEFAULT_ACCELERATION};
+use crate::{vector::Vector, raycaster::{MapCellType, MapCell, distance_squared}, DEFAULT_ACCELERATION};
 
 #[derive(Default)]
 pub struct GameState {
@@ -58,7 +58,7 @@ impl Default for Player {
 
 impl Default for Enemy {
     fn default() -> Self {
-        let billboard = load_billboard("assets/enemy.png");
+        let billboard = load_billboard("assets/concrete_wall.png");
         Self {
             billboard,
             pos: Vector::new(154.6808076366139, 62.11241662731044),
@@ -158,25 +158,29 @@ impl GameState {
         }
     }
 
-    pub fn billboard_intersection(&self, ray: Vector<f64>) -> bool {
+    pub fn billboard_intersection(&self, ray: Vector<f64>) -> Option<Vec<[u8; 4]>> {
         let billboard = &self.enemy.billboard.0;
         let _half_width = billboard[0].len() as f64 / 2.0;
     
         let p1 = self.enemy.pos + self.player.dir.orthogonal(Direction::Left) * 10.;
         let p2 = self.enemy.pos + self.player.dir.orthogonal(Direction::Right) * 10.;
 
-        // println!("p1: {:?}, p2: {:?}, ray: {:?}", p1, p2, ray);
-    
         if !is_between(ray.x, p1.x, p2.x) {
-            return false;
+            return None;
         }
 
         if !is_between(ray.y, p1.y, p2.y) {
-            return false;
+            return None;
         }
+        
+        // get texture for billboard
+        // get distance between ray point and p1 (or whichever one is less than the other)
+        let least = if p1 < p2 { p1 } else { p2 };
+        let dist = ((ray.x - least.x).abs() + (ray.y - least.y).abs()).clamp(0., billboard.len() as f64);
+        // let dist = distance_squared(ray, least).sqrt().clamp(0., billboard.len() as f64);
 
-        true
-    }    
+        Some(billboard[dist.round() as usize].clone())
+    }
 }
 
 fn is_between<T: std::cmp::PartialOrd>(n: T, a: T, b: T) -> bool {

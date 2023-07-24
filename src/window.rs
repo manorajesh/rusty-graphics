@@ -30,7 +30,7 @@ impl GameWindow {
         // let size = window.inner_size();
     
         let surface_texture = SurfaceTexture::new(WIDTH, HEIGHT, &window);
-        let pixels = PixelsBuilder::new(size.width, size.height, surface_texture)
+        let pixels = PixelsBuilder::new(WIDTH, HEIGHT, surface_texture)
             .enable_vsync(true)
             .build()?;
     
